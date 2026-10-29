@@ -1,0 +1,69 @@
+[project]
+name = "impenetra"
+version = "0.1.0"
+description = "Low-latency, high-accuracy guardrails research for AI agents"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [{name = "Shubham Kumar"}]
+
+dependencies = [
+    # Core ML
+    "torch>=2.6.0",
+    "transformers>=4.45.0",
+    "sentence-transformers>=3.0.0",
+    "tokenizers>=0.20.0",
+
+    # NeMo Guardrails (benchmark baseline)
+    "nemoguardrails>=0.11.0",
+
+    # Datasets
+    "datasets>=3.0.0",
+
+    # Profiling & Monitoring
+    "psutil>=6.0.0",
+    "memory-profiler>=0.61",
+    "line-profiler>=4.1.0",
+
+    # Utilities
+    "numpy>=2.1.0",
+    "pandas>=2.2.0",
+    "scikit-learn>=1.5.0",
+    "tqdm>=4.66.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-benchmark>=4.0.0",
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
+notebooks = [
+    "jupyterlab>=4.2.0",
+    "matplotlib>=3.9.0",
+    "seaborn>=0.13.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["impenetra*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests that download models or datasets (deselect with '-m \"not slow\"')",
+]
