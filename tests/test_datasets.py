@@ -7,19 +7,21 @@ from impenetra.datasets.registry import DATASET_REGISTRY, list_datasets
 
 
 def test_registry_has_datasets():
-    assert len(DATASET_REGISTRY) >= 4
+    assert len(DATASET_REGISTRY) >= 3
     assert "clinc150" in DATASET_REGISTRY
     assert "toxic_chat" in DATASET_REGISTRY
     assert "xstest" in DATASET_REGISTRY
-    assert "advbench" in DATASET_REGISTRY
+    # AdvBench is delegated to Garak's built-in probe suite
+    assert "advbench" not in DATASET_REGISTRY
 
 
 def test_list_datasets():
     datasets = list_datasets()
-    assert len(datasets) >= 4
+    assert len(datasets) >= 3
     names = [d.name for d in datasets]
     assert "CLINC150" in names
     assert "ToxicChat" in names
+    assert "XSTest" in names
 
 
 def test_dataset_info_fields():

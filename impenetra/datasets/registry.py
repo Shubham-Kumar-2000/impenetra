@@ -5,7 +5,9 @@ Supported datasets:
 - CLINC150: 150-class intent classification + OOS detection
 - ToxicChat: Real-world conversational toxicity
 - XSTest: Over-refusal / false-positive testing
-- AdvBench: Jailbreak & harmful instruction detection
+
+Note: AdvBench and related jailbreak attack suites are natively covered
+by Garak's built-in probe library (e.g., garak.probes.suffix, garak.probes.dan).
 """
 
 from dataclasses import dataclass
@@ -55,16 +57,6 @@ DATASET_REGISTRY: dict[str, DatasetInfo] = {
         num_classes=2,
         text_column="prompt",
         label_column="label",
-    ),
-    "advbench": DatasetInfo(
-        name="AdvBench",
-        hf_path="walledai/AdvBench",
-        hf_config=None,
-        task="jailbreak_detection",
-        description="Harmful instruction / jailbreak detection benchmark",
-        num_classes=2,
-        text_column="prompt",
-        label_column="target",
     ),
 }
 
