@@ -1,0 +1,26 @@
+{
+  "rest": {
+    "RestGenerator": {
+      "name": "Impenetra-Agent-OpenAI-OffCharter",
+      "uri": "http://127.0.0.1:8000/v1/chat/completions",
+      "method": "post",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "req_template_json_object": {
+        "model": "impenetra-offcharter-eval",
+        "messages": [
+          {
+            "role": "user",
+            "content": "$INPUT"
+          }
+        ]
+      },
+      "response_json": true,
+      "response_json_field": "$.choices[0].message.content"
+    }
+  },
+  "plugins": {
+    "detector_spec": "off_charter.OffCharterLLMJudge"
+  }
+}

@@ -47,9 +47,7 @@ def benchmark_accuracy(
     precision, recall, f1, _ = precision_recall_fscore_support(
         y_true, y_pred, average="macro", zero_division=0
     )
-    report = classification_report(
-        y_true, y_pred, target_names=target_names, zero_division=0
-    )
+    report = classification_report(y_true, y_pred, target_names=target_names, zero_division=0)
     cm = confusion_matrix(y_true, y_pred)
 
     return AccuracyBenchmarkResult(

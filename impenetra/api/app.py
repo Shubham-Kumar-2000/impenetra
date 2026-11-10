@@ -105,6 +105,7 @@ def create_app(
     active_llm_caller: Callable[[list[ChatMessage]], str] | None = None
 
     if agent:
+
         def agent_caller(messages: list[ChatMessage]) -> str:
             user_messages = [{"role": m.role, "content": m.content} for m in messages]
             if hasattr(agent, "invoke"):
@@ -125,6 +126,7 @@ def create_app(
                         HumanMessage,
                         SystemMessage,
                     )
+
                     lc_msgs: list[BaseMessage] = []
                     for m in messages:
                         if m.role == "system":
@@ -145,15 +147,18 @@ def create_app(
     elif llm_caller:
         active_llm_caller = llm_caller
     elif backend_url:
+
         def default_ollama_caller(messages: list[ChatMessage]) -> str:
             msg_payload = []
             if system_prompt:
                 msg_payload.append({"role": "system", "content": system_prompt})
-            msg_payload.extend([
-                {"role": m.role, "content": m.content}
-                for m in messages
-                if not (system_prompt and m.role == "system")
-            ])
+            msg_payload.extend(
+                [
+                    {"role": m.role, "content": m.content}
+                    for m in messages
+                    if not (system_prompt and m.role == "system")
+                ]
+            )
             resp = requests.post(
                 f"{backend_url.rstrip('/')}/api/chat",
                 json={
@@ -172,9 +177,7 @@ def create_app(
 
     application.state.llm_caller = active_llm_caller
 
-    DEFAULT_REFUSAL = (
-        "I cannot fulfill this request because it violates safety guidelines."
-    )
+    DEFAULT_REFUSAL = "I cannot fulfill this request because it violates safety guidelines."
 
     @application.get("/health")
     async def health_check():
@@ -250,9 +253,7 @@ def create_app(
             has_refusal_phrase = res.details and (
                 "sorry" in res.details.lower() or "cannot" in res.details.lower()
             )
-            response_content = (
-                res.details if has_refusal_phrase else DEFAULT_REFUSAL
-            )
+            response_content = res.details if has_refusal_phrase else DEFAULT_REFUSAL
         else:
             if not application.state.llm_caller:
                 raise HTTPException(

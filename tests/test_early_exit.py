@@ -23,13 +23,9 @@ def sample_inputs():
     """Create dummy tokenized inputs."""
     from transformers import AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "sentence-transformers/all-MiniLM-L6-v2"
-    )
+    tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
     texts = ["This is a test.", "Another example input."]
-    return tokenizer(
-        texts, padding=True, truncation=True, return_tensors="pt"
-    )
+    return tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
 
 
 @pytest.mark.slow

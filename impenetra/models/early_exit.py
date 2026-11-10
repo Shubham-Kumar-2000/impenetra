@@ -70,9 +70,7 @@ class EarlyExitTransformer(nn.Module):
         super().__init__()
         self.config = AutoConfig.from_pretrained(model_name)
         self.config.output_hidden_states = True
-        self.backbone = AutoModel.from_pretrained(
-            model_name, config=self.config
-        )
+        self.backbone = AutoModel.from_pretrained(model_name, config=self.config)
         self.num_labels = num_labels
         self.num_layers = self.config.num_hidden_layers
         self.exit_criterion = exit_criterion
@@ -100,9 +98,7 @@ class EarlyExitTransformer(nn.Module):
             self.config.hidden_size, num_labels, self.config.hidden_dropout_prob
         )
 
-    def _should_exit(
-        self, logits: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def _should_exit(self, logits: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Determine if predictions are confident enough to exit."""
         probs = F.softmax(logits, dim=-1)
 
@@ -139,9 +135,7 @@ class EarlyExitTransformer(nn.Module):
 
         # Compute logits at each exit point
         for layer_idx in self.exit_layers:
-            logits = self.exit_classifiers[str(layer_idx)](
-                hidden_states[layer_idx + 1]
-            )
+            logits = self.exit_classifiers[str(layer_idx)](hidden_states[layer_idx + 1])
             all_logits[layer_idx] = logits
             if labels is not None:
                 losses[layer_idx] = F.cross_entropy(logits, labels)
@@ -156,10 +150,7 @@ class EarlyExitTransformer(nn.Module):
         if labels is not None:
             if exit_weights is None:
                 exit_weights = [1.0] * (len(self.exit_layers) + 1)
-            total_loss = sum(
-                w * losses[k]
-                for w, k in zip(exit_weights, list(losses.keys()))
-            )
+            total_loss = sum(w * losses[k] for w, k in zip(exit_weights, list(losses.keys())))
         else:
             total_loss = torch.tensor(0.0)
 
@@ -185,24 +176,18 @@ class EarlyExitTransformer(nn.Module):
         device = input_ids.device
 
         predictions = torch.zeros(batch_size, dtype=torch.long, device=device)
-        exit_layers = torch.full(
-            (batch_size,), self.num_layers, dtype=torch.long, device=device
-        )
+        exit_layers = torch.full((batch_size,), self.num_layers, dtype=torch.long, device=device)
         confidences = torch.zeros(batch_size, device=device)
         exited = torch.zeros(batch_size, dtype=torch.bool, device=device)
 
-        outputs = self.backbone(
-            input_ids=input_ids, attention_mask=attention_mask
-        )
+        outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
         hidden_states = outputs.hidden_states
 
         for layer_idx in self.exit_layers:
             if exited.all():
                 break
 
-            logits = self.exit_classifiers[str(layer_idx)](
-                hidden_states[layer_idx + 1]
-            )
+            logits = self.exit_classifiers[str(layer_idx)](hidden_states[layer_idx + 1])
             confident, confidence = self._should_exit(logits)
 
             should_exit = confident & (~exited)
@@ -218,9 +203,7 @@ class EarlyExitTransformer(nn.Module):
         if remaining.any():
             final_logits = self.final_classifier(hidden_states[-1])
             probs = F.softmax(final_logits, dim=-1)
-            predictions[remaining] = torch.argmax(
-                final_logits[remaining], dim=-1
-            )
+            predictions[remaining] = torch.argmax(final_logits[remaining], dim=-1)
             confidences[remaining], _ = torch.max(probs[remaining], dim=-1)
 
         return EarlyExitResult(

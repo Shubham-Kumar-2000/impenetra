@@ -43,4 +43,13 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     --pid "$SERVER_PID" \
     --out "$RESULTS_DIR/${TIMESTAMP}_bench.json"
 
+echo "Running garak probes on $EXPERIMENT..."
+.venv/bin/python3 -m impenetra.garak_plugins.setup install &>/dev/null || true
+.venv/bin/python3 -m garak \
+    --model_type rest \
+    --config "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
+    --probes dan,off_charter.OffCharterComprehensive \
+    --report_prefix "$RESULTS_DIR/${TIMESTAMP}_baseline" \
+    2>&1 | tee "$RESULTS_DIR/${TIMESTAMP}_garak.log" || true
+
 echo "Completed $EXPERIMENT. Results in $RESULTS_DIR/"

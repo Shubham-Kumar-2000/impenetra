@@ -31,9 +31,7 @@ class ProfileReporter:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", newline="") as f:
-            writer = csv.DictWriter(
-                f, fieldnames=self.results[0].to_dict().keys()
-            )
+            writer = csv.DictWriter(f, fieldnames=self.results[0].to_dict().keys())
             writer.writeheader()
             for r in self.results:
                 writer.writerow(r.to_dict())

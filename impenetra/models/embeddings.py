@@ -38,9 +38,7 @@ class GuardrailEmbedder:
             device=self.device,
         )
 
-    def similarity(
-        self, texts_a: list[str], texts_b: list[str]
-    ) -> torch.Tensor:
+    def similarity(self, texts_a: list[str], texts_b: list[str]) -> torch.Tensor:
         """Compute pairwise cosine similarity between two lists of texts."""
         emb_a = self.encode(texts_a)
         emb_b = self.encode(texts_b)
