@@ -1,5 +1,5 @@
 """Core guardrail interfaces and routing."""
 
-from .guardrail import BaseGuardrail, GuardrailResult, RuleBasedGuardrail
+from .guardrail import BaseGuardrail, GuardrailResult, OffCharterGuardrail, RuleBasedGuardrail
 
-__all__ = ["BaseGuardrail", "GuardrailResult", "RuleBasedGuardrail"]
+__all__ = ["BaseGuardrail", "GuardrailResult", "OffCharterGuardrail", "RuleBasedGuardrail"]

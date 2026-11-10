@@ -101,10 +101,12 @@ REPORT_PREFIX="$RESULTS_DIR/${TIMESTAMP}_llamaguard"
 
 mkdir -p "$RESULTS_DIR"
 
+python -m impenetra.garak_plugins.setup install &>/dev/null || true
+
 python -m garak \
     --model_type rest \
     --config "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
-    --probes dan,promptinject,jailbreak \
+    --probes dan,promptinject,jailbreak,off_charter.OffCharterComprehensive \
     --report_prefix "$REPORT_PREFIX" \
     2>&1 | tee "$RESULTS_DIR/${TIMESTAMP}_garak.log"
 

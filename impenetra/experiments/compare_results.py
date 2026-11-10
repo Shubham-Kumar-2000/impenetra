@@ -22,6 +22,7 @@ try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
+
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
@@ -122,6 +123,11 @@ def print_table_plain(all_data: list[tuple[str, str, dict | None, dict | None]])
                 f"  Block rate (custom bench): {acc['block_rate_pct']}  "
                 f"({acc['blocked']}/{acc['adversarial_total']})"
             )
+            if "off_charter_block_rate_pct" in acc:
+                print(
+                    f"  Off-charter block rate:    {acc['off_charter_block_rate_pct']}  "
+                    f"({acc.get('off_charter_blocked', 0)}/{acc.get('off_charter_total', 0)})"
+                )
             print(
                 f"  Guard latency p50/p95:     {fmt_ms(lat['guard_p50_ms'])} / "
                 f"{fmt_ms(lat['guard_p95_ms'])}"
@@ -140,12 +146,14 @@ def print_table_plain(all_data: list[tuple[str, str, dict | None, dict | None]])
 def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
     console = Console()
 
-    console.print(Panel.fit(
-        "[bold cyan]Guardrail Experiment Results — Comparison[/bold cyan]\n"
-        "[dim]Metric: lower bypass rate = stronger protection | "
-        "lower latency = faster | lower MB = lighter[/dim]",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]Guardrail Experiment Results — Comparison[/bold cyan]\n"
+            "[dim]Metric: lower bypass rate = stronger protection | "
+            "lower latency = faster | lower MB = lighter[/dim]",
+            border_style="cyan",
+        )
+    )
 
     # ── Accuracy Table ──────────────────────────────────────────────────────
     acc_table = Table(
@@ -154,10 +162,11 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
         header_style="bold magenta",
         show_lines=True,
     )
-    acc_table.add_column("Experiment",        style="bold", width=28)
+    acc_table.add_column("Experiment", style="bold", width=28)
     acc_table.add_column("Custom Bench\n(blocked/total)", justify="center", width=20)
-    acc_table.add_column("Block Rate",         justify="center", width=14)
-    acc_table.add_column("Bar",                width=24)
+    acc_table.add_column("Block Rate", justify="center", width=14)
+    acc_table.add_column("Off-Charter Block", justify="center", width=18)
+    acc_table.add_column("Bar", width=24)
     acc_table.add_column("Garak Bypass Rate", justify="center", width=18)
 
     for exp_id, label, bench, garak in all_data:
@@ -169,10 +178,19 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
             br_pct = acc["block_rate_pct"]
             color = "green" if br >= 0.8 else "yellow" if br >= 0.5 else "red"
             bar_str = bar(br)
+
+            off_pct = acc.get("off_charter_block_rate_pct", "—")
+            if "off_charter_block_rate_pct" in acc:
+                blocked = acc.get("off_charter_blocked", 0)
+                total = acc.get("off_charter_total", 0)
+                off_str = f"{off_pct} ({blocked}/{total})"
+            else:
+                off_str = "—"
         else:
             blocked_str = "—"
             br_pct = "—"
             bar_str = "—"
+            off_str = "—"
             color = "white"
 
         garak_str = garak["bypass_pct"] if garak else "[dim]no report[/dim]"
@@ -185,6 +203,7 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
             exp_label,
             blocked_str,
             f"[{color}]{br_pct}[/{color}]",
+            off_str,
             f"[{color}]{bar_str}[/{color}]",
             garak_str,
         )
@@ -199,10 +218,10 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
         header_style="bold yellow",
         show_lines=True,
     )
-    lat_table.add_column("Experiment",           style="bold", width=28)
-    lat_table.add_column("Guard p50",    justify="right", width=12)
-    lat_table.add_column("Guard p95",    justify="right", width=12)
-    lat_table.add_column("Guard mean",   justify="right", width=12)
+    lat_table.add_column("Experiment", style="bold", width=28)
+    lat_table.add_column("Guard p50", justify="right", width=12)
+    lat_table.add_column("Guard p95", justify="right", width=12)
+    lat_table.add_column("Guard mean", justify="right", width=12)
     lat_table.add_column("Round-trip p50\n(adversarial)", justify="right", width=16)
     lat_table.add_column("Round-trip p50\n(benign)", justify="right", width=16)
 
@@ -231,17 +250,14 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
         header_style="bold blue",
         show_lines=True,
     )
-    mem_table.add_column("Experiment",   style="bold", width=28)
-    mem_table.add_column("RSS idle",     justify="right", width=14)
-    mem_table.add_column("RSS loaded",   justify="right", width=14)
-    mem_table.add_column("VMS idle",     justify="right", width=14)
-    mem_table.add_column("VMS loaded",   justify="right", width=14)
-    mem_table.add_column("Bar (idle)",   width=22)
+    mem_table.add_column("Experiment", style="bold", width=28)
+    mem_table.add_column("RSS idle", justify="right", width=14)
+    mem_table.add_column("RSS loaded", justify="right", width=14)
+    mem_table.add_column("VMS idle", justify="right", width=14)
+    mem_table.add_column("VMS loaded", justify="right", width=14)
+    mem_table.add_column("Bar (idle)", width=22)
 
-    max_rss = max(
-        (b["memory"]["idle_rss_mb"] for _, _, b, _ in all_data if b),
-        default=1000
-    )
+    max_rss = max((b["memory"]["idle_rss_mb"] for _, _, b, _ in all_data if b), default=1000)
     for exp_id, label, bench, garak in all_data:
         exp_label = label.replace("\n", " — ")
         if bench:
@@ -271,10 +287,10 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
             box=box.SIMPLE_HEAD,
             header_style="bold red",
         )
-        probe_table.add_column("Probe",          width=50)
-        probe_table.add_column("Attempts",        justify="right", width=10)
-        probe_table.add_column("Bypassed",        justify="right", width=10)
-        probe_table.add_column("Bypass Rate",     justify="right", width=14)
+        probe_table.add_column("Probe", width=50)
+        probe_table.add_column("Attempts", justify="right", width=10)
+        probe_table.add_column("Bypassed", justify="right", width=10)
+        probe_table.add_column("Bypass Rate", justify="right", width=14)
         for probe, stats in sorted(garak["probes"].items()):
             total = stats["total"]
             passed = stats["passed"]

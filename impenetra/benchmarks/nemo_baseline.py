@@ -42,7 +42,5 @@ class NemoBaseline:
         """Generate a response through NeMo Guardrails."""
         if self._rails is None:
             raise RuntimeError("Call setup() first")
-        response = await self._rails.generate_async(
-            messages=[{"role": "user", "content": prompt}]
-        )
+        response = await self._rails.generate_async(messages=[{"role": "user", "content": prompt}])
         return response

@@ -34,8 +34,8 @@ PYTHON="${PROJECT_ROOT}/.venv/bin/python3"
 # shellcheck disable=SC1091
 source "${PROJECT_ROOT}/.venv/bin/activate" 2>/dev/null || true
 SKIP_GARAK="${SKIP_GARAK:-0}"
-# Default: fast probes that don't require extra model downloads
-GARAK_PROBES="${GARAK_PROBES:-dan.Ablation_Dan_11_0,dan.AutoDANCached,dan.DanInTheWild,dra.DRA,encoding.InjectBase64,encoding.InjectROT13}"
+# Default: fast probes including adversarial jailbreaks, encoding bypasses, and off-charter utility theft
+GARAK_PROBES="${GARAK_PROBES:-dan.Ablation_Dan_11_0,dan.AutoDANCached,dan.DanInTheWild,dra.DRA,encoding.InjectBase64,encoding.InjectROT13,off_charter.OffCharterComprehensive}"
 GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_config.json"
 
 # --- Colours -----------------------------------------------------------------
@@ -86,7 +86,8 @@ if [[ "$SKIP_GARAK" == "1" ]]; then
 else
     "$PYTHON" -m garak --version &>/dev/null \
         || { fail "garak not installed. Run: pip install -e '.[dev]'"; exit 1; }
-    ok "garak available"
+    "$PYTHON" -m impenetra.garak_plugins.setup install &>/dev/null || true
+    ok "garak and impenetra plugins ready"
 fi
 
 # Check llama-guard3 for exp 1

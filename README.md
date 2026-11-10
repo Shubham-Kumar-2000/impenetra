@@ -37,13 +37,12 @@ pip install -e ".[notebooks]"
 from impenetra.profiling.profiler import profile_all
 from impenetra.models.embeddings import GuardrailEmbedder
 
+
 @profile_all
 def check_similarity():
     embedder = GuardrailEmbedder()
-    return embedder.similarity(
-        ["How do I hack a system?"],
-        ["What is cybersecurity?"]
-    )
+    return embedder.similarity(["How do I hack a system?"], ["What is cybersecurity?"])
+
 
 result, profile = check_similarity()
 print(profile)  # ⏱ check_similarity: 45.23ms wall | 📦 12.50MB peak

@@ -47,9 +47,7 @@ class NeMoGuardrail(BaseGuardrail):
         start = time.perf_counter()
         try:
             # Evaluate input through NeMo Guardrails
-            response = self._rails.generate(
-                messages=[{"role": "user", "content": text}]
-            )
+            response = self._rails.generate(messages=[{"role": "user", "content": text}])
 
             if isinstance(response, dict):
                 content = response.get("content", str(response))

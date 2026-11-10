@@ -3,7 +3,7 @@ name = "impenetra"
 version = "0.1.0"
 description = "Low-latency, high-accuracy guardrails research for AI agents"
 readme = "README.md"
-license = {text = "MIT"}
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{name = "Shubham Kumar"}]
 
@@ -84,6 +84,8 @@ module = [
     "nemoguardrails.*",
     "psutil.*",
     "nest_asyncio.*",
+    "garak.*",
+    "garak",
 ]
 ignore_missing_imports = true
 
