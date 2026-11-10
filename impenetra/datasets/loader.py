@@ -1,6 +1,7 @@
 """Unified dataset loading with HuggingFace datasets."""
 
-from datasets import load_dataset, DatasetDict
+from datasets import DatasetDict, load_dataset
+
 from .registry import DATASET_REGISTRY, DatasetInfo
 
 

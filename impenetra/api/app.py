@@ -102,6 +102,8 @@ def create_app(
 
     target_model = model_name or "llama3.1:8b-instruct-q8_0"
 
+    active_llm_caller: Callable[[list[ChatMessage]], str] | None = None
+
     if agent:
         def agent_caller(messages: list[ChatMessage]) -> str:
             user_messages = [{"role": m.role, "content": m.content} for m in messages]
@@ -117,8 +119,13 @@ def create_app(
                         return str(out["output"])
                     return str(out)
                 except Exception:
-                    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-                    lc_msgs = []
+                    from langchain_core.messages import (
+                        AIMessage,
+                        BaseMessage,
+                        HumanMessage,
+                        SystemMessage,
+                    )
+                    lc_msgs: list[BaseMessage] = []
                     for m in messages:
                         if m.role == "system":
                             lc_msgs.append(SystemMessage(content=m.content))
@@ -209,7 +216,10 @@ def create_app(
         if not application.state.llm_caller:
             raise HTTPException(
                 status_code=503,
-                detail="LLM backend caller not configured. Provide backend_url or llm_caller in create_app().",
+                detail=(
+                    "LLM backend caller not configured. "
+                    "Provide backend_url or llm_caller in create_app()."
+                ),
             )
 
         safe_response = application.state.llm_caller([ChatMessage(role="user", content=req.prompt)])
@@ -237,16 +247,20 @@ def create_app(
         res: GuardrailResult = application.state.guardrail.check(prompt_text)
 
         if not res.allowed:
+            has_refusal_phrase = res.details and (
+                "sorry" in res.details.lower() or "cannot" in res.details.lower()
+            )
             response_content = (
-                res.details
-                if res.details and ("sorry" in res.details.lower() or "cannot" in res.details.lower())
-                else DEFAULT_REFUSAL
+                res.details if has_refusal_phrase else DEFAULT_REFUSAL
             )
         else:
             if not application.state.llm_caller:
                 raise HTTPException(
                     status_code=503,
-                    detail="LLM backend caller not configured. Provide backend_url or llm_caller in create_app().",
+                    detail=(
+                        "LLM backend caller not configured. "
+                        "Provide backend_url or llm_caller in create_app()."
+                    ),
                 )
             response_content = application.state.llm_caller(req.messages)
 

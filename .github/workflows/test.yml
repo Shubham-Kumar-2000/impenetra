@@ -43,6 +43,14 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -e ".[dev]"
 
+      - name: Run Ruff (lint & unused imports)
+        run: |
+          ruff check impenetra tests
+
+      - name: Run Mypy (type & missing imports check)
+        run: |
+          mypy
+
       - name: Run tests
         run: |
           pytest

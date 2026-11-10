@@ -26,7 +26,7 @@ class NemoBaseline:
         documentation for supported providers (OpenAI, Azure, Ollama, etc.).
         """
         # Deferred import — NeMo has heavy deps
-        from nemoguardrails import RailsConfig, LLMRails
+        from nemoguardrails import LLMRails, RailsConfig
 
         if self.config_path:
             config = RailsConfig.from_path(str(self.config_path))

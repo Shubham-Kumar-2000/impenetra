@@ -2,10 +2,10 @@
 
 from .profiler import (
     ProfileResult,
-    profile_time,
-    profile_memory,
-    profile_all,
     benchmark_context,
+    profile_all,
+    profile_memory,
+    profile_time,
 )
 from .reporter import ProfileReporter
 

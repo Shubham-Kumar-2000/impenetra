@@ -12,11 +12,12 @@ Supports:
 - Batch-aware early exit tracking
 """
 
+from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import AutoModel, AutoConfig
-from dataclasses import dataclass
+from transformers import AutoConfig, AutoModel
 
 
 @dataclass

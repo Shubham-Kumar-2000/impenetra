@@ -4,10 +4,9 @@ Uses a LangChain agent powered by a mock LLM (FakeListChatModel)
 to test agent-guardrail integration deterministically and quickly without external services.
 """
 
-import pytest
 from fastapi.testclient import TestClient
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain.agents import create_agent
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from impenetra.api.app import create_app
 from impenetra.core.guardrail import RuleBasedGuardrail

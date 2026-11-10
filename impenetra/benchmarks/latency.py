@@ -1,9 +1,9 @@
 """Latency benchmarking utilities for guardrail systems."""
 
-import time
 import statistics
+import time
 from dataclasses import dataclass, field
-from typing import Callable, Any
+from typing import Callable
 
 
 @dataclass

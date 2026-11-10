@@ -1,13 +1,14 @@
 """Accuracy benchmarking utilities for guardrail systems."""
 
 from dataclasses import dataclass
+
+import numpy as np
 from sklearn.metrics import (
     accuracy_score,
-    precision_recall_fscore_support,
     classification_report,
     confusion_matrix,
+    precision_recall_fscore_support,
 )
-import numpy as np
 
 
 @dataclass
