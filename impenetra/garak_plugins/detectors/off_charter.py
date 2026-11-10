@@ -228,7 +228,7 @@ class OffCharterLLMJudge(garak.detectors.base.Detector):
             else:
                 user_prompt = str(attempt.prompt)
 
-        scores = []
+        scores: list[float | None] = []
         for output in attempt.outputs:
             if output is None:
                 scores.append(None)
