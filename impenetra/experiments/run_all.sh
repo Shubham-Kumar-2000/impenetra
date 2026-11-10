@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
 # =============================================================================
-# experiments/run_all.sh
+# impenetra/experiments/run_all.sh
 # =============================================================================
 # Master orchestration script. Runs all 3 guardrail experiments sequentially:
-#   1. llamaguard-as-guardrail
-#   2. nemo-guardrails
-#   3. system-prompt-only
+#   1. llamaguard_as_guardrail
+#   2. nemo_guardrails
+#   3. system_prompt_without_guardrail
 #
 # For each experiment:
 #   - Starts the FastAPI server
 #   - Runs the latency + memory benchmark (benchmark.py)
 #   - Runs garak red-team probes (dan, dra, encoding subset)
-#   - Saves timestamped results to experiments/<name>/results/
+#   - Saves timestamped results to impenetra/experiments/<name>/results/
 #   - Stops the server
 #
 # After all 3: prints a side-by-side comparison via compare_results.py
 #
 # Usage (from project root):
-#   bash experiments/run_all.sh
+#   bash impenetra/experiments/run_all.sh
 #
 # Options:
-#   SKIP_GARAK=1 bash experiments/run_all.sh   # skip garak (latency+mem only)
-#   GARAK_PROBES="dan.Ablation_Dan_11_0" bash experiments/run_all.sh
+#   SKIP_GARAK=1 bash impenetra/experiments/run_all.sh   # skip garak (latency+mem only)
+#   GARAK_PROBES="dan.Ablation_Dan_11_0" bash impenetra/experiments/run_all.sh
 # =============================================================================
 set -euo pipefail
 
 # --- Config ------------------------------------------------------------------
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EXPERIMENTS_DIR="$PROJECT_ROOT/experiments"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+EXPERIMENTS_DIR="$PROJECT_ROOT/impenetra/experiments"
 PORT=8000
 PYTHON="${PROJECT_ROOT}/.venv/bin/python3"
 # Activate venv so subprocesses (ollama list, curl, etc.) also work
@@ -152,7 +152,7 @@ run_experiment() {
     # --- Benchmark -----------------------------------------------------------
     step "Running latency + memory benchmark"
     local bench_out="$results_dir/${TIMESTAMP}_bench.json"
-    "$PYTHON" experiments/benchmark.py \
+    "$PYTHON" impenetra/experiments/benchmark.py \
         --url "http://127.0.0.1:$PORT" \
         --experiment "$exp_name" \
         --pid "$SERVER_PID" \
@@ -200,27 +200,27 @@ run_experiment() {
 # =============================================================================
 
 run_experiment \
-    "llamaguard-as-guardrail" \
-    "experiments/llamaguard-as-guardrail/server.py" \
+    "llamaguard_as_guardrail" \
+    "impenetra/experiments/llamaguard_as_guardrail/server.py" \
     "llamaguard"
 
 run_experiment \
-    "nemo-guardrails" \
-    "experiments/nemo-guardrails/server.py" \
+    "nemo_guardrails" \
+    "impenetra/experiments/nemo_guardrails/server.py" \
     "nemo"
 
 run_experiment \
-    "system-prompt-without-guardrail" \
-    "experiments/system-prompt-without-guardrail/server.py" \
+    "system_prompt_without_guardrail" \
+    "impenetra/experiments/system_prompt_without_guardrail/server.py" \
     "system_prompt"
 
 # =============================================================================
 # Final comparison report
 # =============================================================================
 header "Results Comparison                             "
-"$PYTHON" experiments/compare_results.py --results-dir experiments
+"$PYTHON" impenetra/experiments/compare_results.py --results-dir impenetra/experiments
 
 echo -e "\n${GREEN}${BOLD}🏁  All experiments complete!${NC}"
 echo -e "  Timestamp: $TIMESTAMP"
-echo -e "  Results stored in each experiments/<name>/results/ folder"
-echo -e "  Re-run comparison: ${CYAN}python3 experiments/compare_results.py${NC}\n"
+echo -e "  Results stored in each impenetra/experiments/<name>/results/ folder"
+echo -e "  Re-run comparison: ${CYAN}python3 impenetra/experiments/compare_results.py${NC}\n"

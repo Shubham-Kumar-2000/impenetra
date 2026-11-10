@@ -3,11 +3,11 @@
 # Experiment 2: NeMo Guardrails
 # =============================================================================
 # Starts the FastAPI server wrapping NVIDIA NeMo Guardrails, runs garak
-# red-team probes against it, saves results to results/, then cleans up.
+# red-team probes against it, saves results to impenetra/experiments/nemo_guardrails/results/, then cleans up.
 #
 # Usage:
 #   cd /path/to/impenetra
-#   bash experiments/nemo-guardrails/run.sh
+#   bash impenetra/experiments/nemo_guardrails/run.sh
 #
 # Prerequisites:
 #   - ollama serve  (running in background)
@@ -16,9 +16,9 @@
 # =============================================================================
 set -euo pipefail
 
-EXPERIMENT="nemo-guardrails"
+EXPERIMENT="nemo_guardrails"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
 PORT=8000
 SERVER_PID=""
@@ -68,7 +68,7 @@ echo -e "${GREEN}✅ All pre-flight checks passed${NC}"
 echo -e "\n${YELLOW}[2/5] Starting NeMo Guardrails server on port $PORT...${NC}"
 echo -e "       (NeMo startup may take 15–30s to load model config)"
 cd "$PROJECT_ROOT"
-python experiments/nemo-guardrails/server.py &
+python impenetra/experiments/nemo_guardrails/server.py &
 SERVER_PID=$!
 
 # Wait for server to be ready (up to 60s — NeMo is slower to init)

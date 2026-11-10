@@ -63,7 +63,7 @@ pip install -e ".[dev]"
 
 ```bash
 # From the project root:
-bash experiments/nemo-guardrails/run.sh
+bash impenetra/experiments/nemo_guardrails/run.sh
 ```
 
 The script will:
@@ -71,7 +71,7 @@ The script will:
 2. 🚀 Start the FastAPI+NeMo server on port 8000 (allow 15–30s for init)
 3. 🧪 Smoke test with a benign prompt
 4. 🔥 Run garak with probes: `dan`, `promptinject`, `jailbreak`
-5. 💾 Save results to `experiments/nemo-guardrails/results/`
+5. 💾 Save results to `impenetra/experiments/nemo_guardrails/results/`
 6. 🧹 Stop the server
 
 ## Manual Server Start
@@ -79,7 +79,7 @@ The script will:
 ```bash
 # Start server only:
 cd /path/to/impenetra
-python experiments/nemo-guardrails/server.py
+python impenetra/experiments/nemo_guardrails/server.py
 
 # Test health:
 curl http://127.0.0.1:8000/health

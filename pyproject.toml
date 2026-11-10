@@ -83,6 +83,7 @@ module = [
     "sklearn.*",
     "nemoguardrails.*",
     "psutil.*",
+    "nest_asyncio.*",
 ]
 ignore_missing_imports = true
 

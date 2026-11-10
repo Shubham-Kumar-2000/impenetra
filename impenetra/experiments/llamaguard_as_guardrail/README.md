@@ -49,7 +49,7 @@ pip install -e ".[dev]"
 
 ```bash
 # From the project root:
-bash experiments/llamaguard-as-guardrail/run.sh
+bash impenetra/experiments/llamaguard_as_guardrail/run.sh
 ```
 
 The script will:
@@ -57,7 +57,7 @@ The script will:
 2. 🚀 Start the FastAPI server on port 8000
 3. 🧪 Smoke test with a benign prompt
 4. 🔥 Run garak with probes: `dan`, `promptinject`, `jailbreak`
-5. 💾 Save results to `experiments/llamaguard-as-guardrail/results/`
+5. 💾 Save results to `impenetra/experiments/llamaguard_as_guardrail/results/`
 6. 🧹 Stop the server
 
 ## Manual Server Start
@@ -65,7 +65,7 @@ The script will:
 ```bash
 # Start server only (no garak run):
 cd /path/to/impenetra
-python experiments/llamaguard-as-guardrail/server.py
+python impenetra/experiments/llamaguard_as_guardrail/server.py
 
 # Test health:
 curl http://127.0.0.1:8000/health

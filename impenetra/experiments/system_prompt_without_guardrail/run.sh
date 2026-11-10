@@ -7,9 +7,9 @@
 # =============================================================================
 set -euo pipefail
 
-EXPERIMENT="system-prompt-without-guardrail"
+EXPERIMENT="system_prompt_without_guardrail"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
 PORT=8000
 SERVER_PID=""
@@ -25,7 +25,7 @@ trap cleanup EXIT
 echo "Starting server: $EXPERIMENT"
 mkdir -p "$RESULTS_DIR"
 cd "$PROJECT_ROOT"
-.venv/bin/python3 experiments/system-prompt-without-guardrail/server.py &
+.venv/bin/python3 impenetra/experiments/system_prompt_without_guardrail/server.py &
 SERVER_PID=$!
 
 for i in {1..30}; do
@@ -37,7 +37,7 @@ for i in {1..30}; do
 done
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-.venv/bin/python3 experiments/benchmark.py \
+.venv/bin/python3 impenetra/experiments/benchmark.py \
     --url "http://127.0.0.1:$PORT" \
     --experiment "$EXPERIMENT" \
     --pid "$SERVER_PID" \

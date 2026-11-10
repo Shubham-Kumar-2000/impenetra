@@ -6,7 +6,9 @@ Meta's LlamaGuard-3 model hosted locally on Ollama.
 """
 
 import time
+
 import requests
+
 from impenetra.core.guardrail import BaseGuardrail, GuardrailResult
 
 OLLAMA_BASE = "http://localhost:11434"

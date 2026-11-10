@@ -6,18 +6,13 @@ and injects the charter system prompt directly into the LLM call.
 Target model: Ollama llama3.1:8b-instruct-q8_0.
 """
 
-import os
-import sys
-from pathlib import Path
-
-# Ensure impenetra and experiment packages are in sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
 import uvicorn
+
 from impenetra.api.app import create_app
-from guardrail import PassThroughGuardrail, CHARTER_SYSTEM_PROMPT
+from impenetra.experiments.system_prompt_without_guardrail.guardrail import (
+    CHARTER_SYSTEM_PROMPT,
+    PassThroughGuardrail,
+)
 
 guardrail = PassThroughGuardrail()
 

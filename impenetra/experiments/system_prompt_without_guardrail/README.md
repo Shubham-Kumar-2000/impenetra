@@ -28,11 +28,11 @@ LLM Refusal or Completion
 
 ```bash
 cd /path/to/impenetra
-.venv/bin/python3 experiments/system-prompt-without-guardrail/server.py
+.venv/bin/python3 impenetra/experiments/system_prompt_without_guardrail/server.py
 ```
 
 ## Running Benchmark
 
 ```bash
-bash experiments/system-prompt-without-guardrail/run.sh
+bash impenetra/experiments/system_prompt_without_guardrail/run.sh
 ```

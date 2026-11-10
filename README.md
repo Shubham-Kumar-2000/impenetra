@@ -78,6 +78,7 @@ impenetra/
 ├── models/       # Early-exit transformer, embeddings
 ├── datasets/     # Dataset registry & loaders (CLINC150, ToxicChat, XSTest)
 ├── benchmarks/   # NeMo baseline, latency/accuracy benchmarks
+├── experiments/  # LlamaGuard, NeMo Guardrails, and baseline experiments
 ├── profiling/    # Time & memory profiling utilities
 └── configs/      # YAML configuration and Garak REST JSON templates
 ```

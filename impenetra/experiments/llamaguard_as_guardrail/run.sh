@@ -3,11 +3,11 @@
 # Experiment 1: LlamaGuard-as-Guardrail
 # =============================================================================
 # Starts the FastAPI guardrail server, runs garak red-team probes against it,
-# saves results to experiments/llamaguard-as-guardrail/results/, then cleans up.
+# saves results to impenetra/experiments/llamaguard_as_guardrail/results/, then cleans up.
 #
 # Usage:
 #   cd /path/to/impenetra
-#   bash experiments/llamaguard-as-guardrail/run.sh
+#   bash impenetra/experiments/llamaguard_as_guardrail/run.sh
 #
 # Prerequisites:
 #   - ollama serve  (running in background)
@@ -17,9 +17,9 @@
 # =============================================================================
 set -euo pipefail
 
-EXPERIMENT="llamaguard-as-guardrail"
+EXPERIMENT="llamaguard_as_guardrail"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
 PORT=8000
 SERVER_PID=""
@@ -67,7 +67,7 @@ echo -e "${GREEN}✅ All pre-flight checks passed${NC}"
 # ---------------------------------------------------------------------------
 echo -e "\n${YELLOW}[2/5] Starting LlamaGuard server on port $PORT...${NC}"
 cd "$PROJECT_ROOT"
-python experiments/llamaguard-as-guardrail/server.py &
+python impenetra/experiments/llamaguard_as_guardrail/server.py &
 SERVER_PID=$!
 
 # Wait for server to be ready (up to 15s)

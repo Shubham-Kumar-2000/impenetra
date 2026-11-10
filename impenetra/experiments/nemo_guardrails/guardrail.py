@@ -7,6 +7,7 @@ NVIDIA NeMo Guardrails (Colang policies + input rails).
 
 import time
 from pathlib import Path
+
 import nest_asyncio
 
 from impenetra.core.guardrail import BaseGuardrail, GuardrailResult
@@ -29,7 +30,8 @@ class NeMoGuardrail(BaseGuardrail):
         self._init_rails()
 
     def _init_rails(self):
-        from nemoguardrails import RailsConfig, LLMRails
+        from nemoguardrails import LLMRails, RailsConfig
+
         config = RailsConfig.from_path(str(self._config_path))
         self._rails = LLMRails(config)
 
@@ -40,6 +42,7 @@ class NeMoGuardrail(BaseGuardrail):
     def check(self, text: str) -> GuardrailResult:
         if self._rails is None:
             self._init_rails()
+        assert self._rails is not None
 
         start = time.perf_counter()
         try:

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-experiments/compare_results.py
-================================
+impenetra/experiments/compare_results.py
+========================================
 Reads benchmark JSON files from all 3 experiments and prints a rich
 comparison table: accuracy, guardrail latency, memory footprint.
 
 Optionally parses garak JSONL reports to get per-probe pass rates.
 
 Usage:
-    python3 experiments/compare_results.py
-    python3 experiments/compare_results.py --results-dir experiments
+    python3 impenetra/experiments/compare_results.py
+    python3 impenetra/experiments/compare_results.py --results-dir impenetra/experiments
 """
 
 import argparse
@@ -18,20 +18,19 @@ import sys
 from pathlib import Path
 
 try:
-    from rich.console import Console
-    from rich.table import Table
-    from rich.panel import Panel
-    from rich.text import Text
     from rich import box
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
 
 
 EXPERIMENTS = [
-    ("llamaguard-as-guardrail", "LlamaGuard3\n(Ollama classifier)"),
-    ("nemo-guardrails",         "NeMo Guardrails\n(Colang + self-check)"),
-    ("system-prompt-without-guardrail", "System Prompt Charter\n(No guardrail — baseline)"),
+    ("llamaguard_as_guardrail", "LlamaGuard3\n(Ollama classifier)"),
+    ("nemo_guardrails", "NeMo Guardrails\n(Colang + self-check)"),
+    ("system_prompt_without_guardrail", "System Prompt Charter\n(No guardrail — baseline)"),
 ]
 
 
@@ -89,7 +88,13 @@ def parse_garak_report(results_dir: Path, experiment: str) -> dict | None:
     }
 
 
-def bar(value: float, max_val: float = 1.0, width: int = 20, fill: str = "█", empty: str = "░") -> str:
+def bar(
+    value: float,
+    max_val: float = 1.0,
+    width: int = 20,
+    fill: str = "█",
+    empty: str = "░",
+) -> str:
     """ASCII progress bar."""
     filled = int(round(value / max_val * width))
     return fill * filled + empty * (width - filled)
@@ -113,13 +118,22 @@ def print_table_plain(all_data: list[tuple[str, str, dict | None, dict | None]])
             acc = bench["accuracy"]
             lat = bench["latency"]
             mem = bench["memory"]
-            print(f"  Block rate (custom bench): {acc['block_rate_pct']}  ({acc['blocked']}/{acc['adversarial_total']})")
-            print(f"  Guard latency p50/p95:     {fmt_ms(lat['guard_p50_ms'])} / {fmt_ms(lat['guard_p95_ms'])}")
+            print(
+                f"  Block rate (custom bench): {acc['block_rate_pct']}  "
+                f"({acc['blocked']}/{acc['adversarial_total']})"
+            )
+            print(
+                f"  Guard latency p50/p95:     {fmt_ms(lat['guard_p50_ms'])} / "
+                f"{fmt_ms(lat['guard_p95_ms'])}"
+            )
             print(f"  Total latency p50 (adv):   {fmt_ms(lat['total_adv_p50_ms'])}")
             print(f"  Total latency p50 (benign):{fmt_ms(lat['total_ben_p50_ms'])}")
             print(f"  Memory RSS (idle/loaded):  {mem['idle_rss_mb']}MB / {mem['loaded_rss_mb']}MB")
         if garak:
-            print(f"  Garak bypass rate:         {garak['bypass_pct']}  ({garak['total_bypassed']}/{garak['total_attempts']} probes bypassed)")
+            print(
+                f"  Garak bypass rate:         {garak['bypass_pct']}  "
+                f"({garak['total_bypassed']}/{garak['total_attempts']} probes bypassed)"
+            )
         print()
 
 
@@ -128,7 +142,8 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
 
     console.print(Panel.fit(
         "[bold cyan]Guardrail Experiment Results — Comparison[/bold cyan]\n"
-        "[dim]Metric: lower bypass rate = stronger protection | lower latency = faster | lower MB = lighter[/dim]",
+        "[dim]Metric: lower bypass rate = stronger protection | "
+        "lower latency = faster | lower MB = lighter[/dim]",
         border_style="cyan"
     ))
 
@@ -279,7 +294,11 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--results-dir", default="experiments", help="Path to experiments/ folder")
+    parser.add_argument(
+        "--results-dir",
+        default="impenetra/experiments",
+        help="Path to experiments/ folder",
+    )
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir)
@@ -298,7 +317,7 @@ def main():
 
     if missing:
         print(f"⚠️  No benchmark data found for: {', '.join(missing)}")
-        print("   Run experiments first with: bash experiments/run_all.sh\n")
+        print("   Run experiments first with: bash impenetra/experiments/run_all.sh\n")
 
     if HAS_RICH:
         print_table_rich(all_data)
