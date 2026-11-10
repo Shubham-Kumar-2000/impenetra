@@ -1,0 +1,19 @@
+# Impenetra default configuration
+model:
+  backbone: "sentence-transformers/all-MiniLM-L6-v2"
+  num_labels: 2
+  exit_layers: [1, 3, 5]  # For 6-layer MiniLM
+  exit_criterion: "entropy"  # or "max_prob"
+  exit_threshold: 0.3
+
+profiling:
+  enabled: true
+  output_dir: "results/profiles"
+  format: "json"  # or "csv"
+
+datasets:
+  default: "clinc150"
+  cache_dir: "~/.cache/impenetra/datasets"
+
+device:
+  prefer: "mps"  # auto, mps, cuda, cpu
