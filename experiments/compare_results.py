@@ -31,7 +31,7 @@ except ImportError:
 EXPERIMENTS = [
     ("llamaguard-as-guardrail", "LlamaGuard3\n(Ollama classifier)"),
     ("nemo-guardrails",         "NeMo Guardrails\n(Colang + self-check)"),
-    ("system-prompt-only",      "System Prompt Only\n(No guardrail — baseline)"),
+    ("system-prompt-without-guardrail", "System Prompt Charter\n(No guardrail — baseline)"),
 ]
 
 

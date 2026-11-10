@@ -210,8 +210,8 @@ run_experiment \
     "nemo"
 
 run_experiment \
-    "system-prompt-only" \
-    "experiments/system-prompt-only/server.py" \
+    "system-prompt-without-guardrail" \
+    "experiments/system-prompt-without-guardrail/server.py" \
     "system_prompt"
 
 # =============================================================================

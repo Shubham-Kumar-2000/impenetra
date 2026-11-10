@@ -10,8 +10,9 @@ Provides:
 
 import time
 import uuid
-from typing import Any
+from typing import Any, Callable
 
+import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
@@ -79,7 +80,14 @@ class GuardrailCheckResponse(BaseModel):
     latency_ms: float
 
 
-def create_app(guardrail: BaseGuardrail | None = None) -> FastAPI:
+def create_app(
+    guardrail: BaseGuardrail | None = None,
+    backend_url: str | None = "http://localhost:11434",
+    model_name: str | None = "llama3.1:8b-instruct-q8_0",
+    system_prompt: str | None = None,
+    llm_caller: Callable[[list[ChatMessage]], str] | None = None,
+    agent: Any | None = None,
+) -> FastAPI:
     """Create and configure the FastAPI application."""
 
     application = FastAPI(
@@ -91,6 +99,71 @@ def create_app(guardrail: BaseGuardrail | None = None) -> FastAPI:
     # Use default rule-based guardrail if none provided
     active_guardrail = guardrail or RuleBasedGuardrail()
     application.state.guardrail = active_guardrail
+
+    target_model = model_name or "llama3.1:8b-instruct-q8_0"
+
+    if agent:
+        def agent_caller(messages: list[ChatMessage]) -> str:
+            user_messages = [{"role": m.role, "content": m.content} for m in messages]
+            if hasattr(agent, "invoke"):
+                try:
+                    out = agent.invoke({"messages": user_messages})
+                    if isinstance(out, dict) and "messages" in out and out["messages"]:
+                        last_msg = out["messages"][-1]
+                        return getattr(last_msg, "content", str(last_msg))
+                    elif hasattr(out, "content"):
+                        return str(out.content)
+                    elif isinstance(out, dict) and "output" in out:
+                        return str(out["output"])
+                    return str(out)
+                except Exception:
+                    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+                    lc_msgs = []
+                    for m in messages:
+                        if m.role == "system":
+                            lc_msgs.append(SystemMessage(content=m.content))
+                        elif m.role == "assistant":
+                            lc_msgs.append(AIMessage(content=m.content))
+                        else:
+                            lc_msgs.append(HumanMessage(content=m.content))
+                    out = agent.invoke(lc_msgs)
+                    if hasattr(out, "content"):
+                        return str(out.content)
+                    return str(out)
+            elif callable(agent):
+                return str(agent(messages))
+            return str(agent)
+
+        active_llm_caller = agent_caller
+    elif llm_caller:
+        active_llm_caller = llm_caller
+    elif backend_url:
+        def default_ollama_caller(messages: list[ChatMessage]) -> str:
+            msg_payload = []
+            if system_prompt:
+                msg_payload.append({"role": "system", "content": system_prompt})
+            msg_payload.extend([
+                {"role": m.role, "content": m.content}
+                for m in messages
+                if not (system_prompt and m.role == "system")
+            ])
+            resp = requests.post(
+                f"{backend_url.rstrip('/')}/api/chat",
+                json={
+                    "model": target_model,
+                    "messages": msg_payload,
+                    "stream": False,
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            return resp.json()["message"]["content"]
+
+        active_llm_caller = default_ollama_caller
+    else:
+        active_llm_caller = None
+
+    application.state.llm_caller = active_llm_caller
 
     DEFAULT_REFUSAL = (
         "I cannot fulfill this request because it violates safety guidelines."
@@ -133,8 +206,13 @@ def create_app(guardrail: BaseGuardrail | None = None) -> FastAPI:
                 latency_ms=round(res.latency_ms, 3),
             )
 
-        # In production/research this forwards to target LLM; here simulated safe response
-        safe_response = f"Processed request successfully: {req.prompt[:50]}..."
+        if not application.state.llm_caller:
+            raise HTTPException(
+                status_code=503,
+                detail="LLM backend caller not configured. Provide backend_url or llm_caller in create_app().",
+            )
+
+        safe_response = application.state.llm_caller([ChatMessage(role="user", content=req.prompt)])
         return ChatPromptResponse(
             response=safe_response,
             blocked=False,
@@ -158,11 +236,19 @@ def create_app(guardrail: BaseGuardrail | None = None) -> FastAPI:
 
         res: GuardrailResult = application.state.guardrail.check(prompt_text)
 
-        response_content = (
-            DEFAULT_REFUSAL
-            if not res.allowed
-            else f"Response from {req.model}: Received query securely."
-        )
+        if not res.allowed:
+            response_content = (
+                res.details
+                if res.details and ("sorry" in res.details.lower() or "cannot" in res.details.lower())
+                else DEFAULT_REFUSAL
+            )
+        else:
+            if not application.state.llm_caller:
+                raise HTTPException(
+                    status_code=503,
+                    detail="LLM backend caller not configured. Provide backend_url or llm_caller in create_app().",
+                )
+            response_content = application.state.llm_caller(req.messages)
 
         return OpenAIChatResponse(
             id=f"chatcmpl-{uuid.uuid4().hex[:12]}",
@@ -182,9 +268,11 @@ def create_app(guardrail: BaseGuardrail | None = None) -> FastAPI:
             },
             guardrail={
                 "allowed": res.allowed,
+                "blocked": not res.allowed,
                 "category": res.category,
                 "confidence": res.confidence,
                 "latency_ms": round(res.latency_ms, 3),
+                "details": res.details,
             },
         )
 
