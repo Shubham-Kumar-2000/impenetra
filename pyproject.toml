@@ -67,6 +67,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+extend-select = [
+    "E402",  # Module level import not at top of file
+    "I001",  # Import block is un-sorted or un-formatted
+]
 
 [tool.mypy]
 python_version = "3.11"
