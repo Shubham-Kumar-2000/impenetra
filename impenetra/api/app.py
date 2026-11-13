@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from impenetra.core.guardrail import BaseGuardrail, GuardrailResult, RuleBasedGuardrail
+from impenetra.food_agent import FOOD_AGENT_SYSTEM_PROMPT, get_default_agent
 
 
 class ChatPromptRequest(BaseModel):
@@ -82,7 +83,7 @@ class GuardrailCheckResponse(BaseModel):
 
 def create_app(
     guardrail: BaseGuardrail | None = None,
-    backend_url: str | None = "http://localhost:11434",
+    backend_url: str | None = None,
     model_name: str | None = "llama3.1:8b-instruct-q8_0",
     system_prompt: str | None = None,
     llm_caller: Callable[[list[ChatMessage]], str] | None = None,
@@ -101,6 +102,11 @@ def create_app(
     application.state.guardrail = active_guardrail
 
     target_model = model_name or "llama3.1:8b-instruct-q8_0"
+    active_system_prompt = system_prompt or FOOD_AGENT_SYSTEM_PROMPT
+
+    # If no agent, llm_caller, or backend_url is specified, default to the food agent
+    if agent is None and llm_caller is None and backend_url is None:
+        agent = get_default_agent()
 
     active_llm_caller: Callable[[list[ChatMessage]], str] | None = None
 
@@ -150,13 +156,13 @@ def create_app(
 
         def default_ollama_caller(messages: list[ChatMessage]) -> str:
             msg_payload = []
-            if system_prompt:
-                msg_payload.append({"role": "system", "content": system_prompt})
+            if active_system_prompt:
+                msg_payload.append({"role": "system", "content": active_system_prompt})
             msg_payload.extend(
                 [
                     {"role": m.role, "content": m.content}
                     for m in messages
-                    if not (system_prompt and m.role == "system")
+                    if not (active_system_prompt and m.role == "system")
                 ]
             )
             resp = requests.post(
