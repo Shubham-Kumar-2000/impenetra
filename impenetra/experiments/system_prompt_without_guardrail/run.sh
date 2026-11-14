@@ -73,9 +73,11 @@ python -m impenetra.experiments.metrics reset --url "http://127.0.0.1:$PORT"
 python -m impenetra.garak_plugins.setup install &>/dev/null || true
 
 GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_config.json"
-if [[ "${SAMPLE_ONLY,,}" =~ ^(true|1|yes)$ ]]; then
-    GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_sample_config.json"
-fi
+case "${SAMPLE_ONLY:-0}" in
+    [tT][rR][uU][eE]|1|[yY][eE][sS])
+        GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_sample_config.json"
+        ;;
+esac
 
 python -m garak \
     --target_type rest \
