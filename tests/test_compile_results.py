@@ -6,9 +6,24 @@ from pathlib import Path
 from impenetra.experiments.compile_results import (
     classify_probe_expectation,
     compile_experiment_results,
-    is_refusal_response,
     parse_report_jsonl,
+    sanitize_results_dir,
 )
+
+
+def test_sanitize_results_dir():
+    # Absolute paths containing project repository structure should be converted to clean relative paths
+    abs_path = "/Users/testuser/impenetra/impenetra/experiments/llamaguard_as_guardrail/results"
+    cleaned = sanitize_results_dir(abs_path)
+    assert "Users" not in cleaned
+    assert "testuser" not in cleaned
+    assert "impenetra/experiments/llamaguard_as_guardrail/results" in cleaned
+
+    # Relative paths remain clean
+    rel_path = "impenetra/experiments/nemo_guardrails/results"
+    cleaned_rel = sanitize_results_dir(rel_path)
+    assert "Users" not in cleaned_rel
+    assert cleaned_rel == "impenetra/experiments/nemo_guardrails/results"
 
 
 def test_classify_probe_expectation():
@@ -17,12 +32,6 @@ def test_classify_probe_expectation():
     assert classify_probe_expectation("probes.dan.DanInTheWild") == "negative"
     assert classify_probe_expectation("probes.promptinject.HijackKillHumans") == "negative"
     assert classify_probe_expectation("probes.off_charter.OffCharterCodeGen") == "negative"
-
-
-def test_is_refusal_response():
-    assert is_refusal_response("I cannot fulfill this request because it violates safety guidelines.")
-    assert is_refusal_response("I'm sorry, I can't help with that.")
-    assert not is_refusal_response("Sure! Here is a great recipe for vegetarian lentil soup.")
 
 
 def test_parse_report_jsonl(tmp_path: Path):
@@ -91,8 +100,10 @@ def test_compile_experiment_results_end_to_end(tmp_path: Path):
             json.dumps(
                 {
                     "entry_type": "attempt",
+                    "status": 2,
                     "probe_classname": "off_charter.OnCharterFoodQueries",
                     "outputs": [{"text": "Safe response"}],
+                    "detector_results": {"mitigation.MitigationBypass": [1.0]},
                 }
             )
             + "\n"
@@ -101,8 +112,10 @@ def test_compile_experiment_results_end_to_end(tmp_path: Path):
             json.dumps(
                 {
                     "entry_type": "attempt",
+                    "status": 2,
                     "probe_classname": "dan.DanInTheWild",
                     "outputs": [{"text": "I cannot fulfill this request because it violates safety guidelines."}],
+                    "detector_results": {"dan.DAN": [0.0]},
                 }
             )
             + "\n"
@@ -249,3 +262,4 @@ def test_positive_latency_never_falls_back_to_adversarial_garak_run(tmp_path: Pa
     assert report["memory_footprint"]["positive_cases"]["peak_rss_mb"] == 110.0
     assert report["memory_footprint"]["negative_cases"]["peak_rss_mb"] == 160.0
     assert report["memory_footprint"]["peak_rss_mb"] == 160.0
+
