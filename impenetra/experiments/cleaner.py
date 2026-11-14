@@ -52,9 +52,7 @@ def clear_results_dir(
         return 0
 
     preserve = preserve_names if preserve_names is not None else DEFAULT_PRESERVE_NAMES
-    extensions = (
-        allowed_extensions if allowed_extensions is not None else DEFAULT_RESULT_EXTENSIONS
-    )
+    extensions = allowed_extensions if allowed_extensions is not None else DEFAULT_RESULT_EXTENSIONS
 
     deleted_count = 0
     # Walk through directory and remove non-preserved result files
@@ -74,11 +72,16 @@ def clear_results_dir(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Clear result files from an experiment results directory.")
+    parser = argparse.ArgumentParser(
+        description="Clear result files from an experiment results directory."
+    )
     parser.add_argument(
         "--dir",
         required=True,
-        help="Path to results directory (e.g. impenetra/experiments/llamaguard_as_guardrail/results)",
+        help=(
+            "Path to results directory "
+            "(e.g. impenetra/experiments/llamaguard_as_guardrail/results)"
+        ),
     )
     args = parser.parse_args()
 

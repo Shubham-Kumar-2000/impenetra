@@ -36,7 +36,15 @@ def test_send_prompt_success():
 def test_send_prompt_blocked():
     mock_resp = MagicMock(status_code=200)
     mock_resp.json.return_value = {
-        "choices": [{"message": {"content": "I cannot fulfill this request because it violates safety guidelines."}}],
+        "choices": [
+            {
+                "message": {
+                    "content": (
+                        "I cannot fulfill this request because it violates safety guidelines."
+                    )
+                }
+            }
+        ],
         "guardrail": {"blocked": True, "latency_ms": 2.1},
     }
     with patch("requests.post", return_value=mock_resp):

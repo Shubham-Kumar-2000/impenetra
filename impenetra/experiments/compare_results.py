@@ -70,15 +70,59 @@ def print_table_plain(all_data: list[tuple[str, str, dict | None]]):
         pos_mem = mem.get("positive_cases", {}).get("peak_rss_mb", mem["idle_rss_mb"])
         neg_mem = mem.get("negative_cases", {}).get("peak_rss_mb", mem["peak_rss_mb"])
 
-        print(f"  Positive Cases Acc (should NOT block): {pos['accuracy_pct']} ({pos['allowed']}/{pos['total']})")
-        print(f"  Negative Cases Acc (SHOULD block):     {neg['accuracy_pct']} ({neg['blocked']}/{neg['total']})")
+        print(
+            "  Positive Cases Acc (should NOT block): "
+            f"{pos['accuracy_pct']} ({pos['allowed']}/{pos['total']})"
+        )
+        print(
+            "  Negative Cases Acc (SHOULD block):     "
+            f"{neg['accuracy_pct']} ({neg['blocked']}/{neg['total']})"
+        )
         print(f"  Overall Accuracy:                      {acc['overall_accuracy_pct']}")
-        print(f"  Guard Latency P95 (pos/neg/all):       {lat['positive_cases_p95_ms']}ms / {lat['negative_cases_p95_ms']}ms / {lat['overall_p95_ms']}ms")
-        print(f"  Guard Latency Mean (pos/neg/all):      {lat.get('positive_cases_mean_ms', 0.0)}ms / {lat.get('negative_cases_mean_ms', 0.0)}ms / {lat.get('overall_mean_ms', lat.get('guard_mean_ms', 0.0))}ms")
-        print(f"  Overall Latency P95 (pos/neg/all):     {olat.get('positive_cases_p95_ms', 0.0)}ms / {olat.get('negative_cases_p95_ms', 0.0)}ms / {olat.get('overall_p95_ms', 0.0)}ms")
-        print(f"  Overall Latency Mean (pos/neg/all):    {olat.get('positive_cases_mean_ms', 0.0)}ms / {olat.get('negative_cases_mean_ms', 0.0)}ms / {olat.get('overall_mean_ms', 0.0)}ms")
-        print(f"  Memory RSS (idle/pos/neg/peak):        {mem['idle_rss_mb']}MB / {pos_mem}MB / {neg_mem}MB / {mem['peak_rss_mb']}MB")
-        print(f"  API Error Metrics (failed/total):      {err['failed_calls']}/{err['total_calls']} ({err['failure_rate_pct']})")
+        pos_p95, neg_p95, all_p95 = (
+            lat["positive_cases_p95_ms"],
+            lat["negative_cases_p95_ms"],
+            lat["overall_p95_ms"],
+        )
+        print(
+            f"  Guard Latency P95 (pos/neg/all):       "
+            f"{pos_p95}ms / {neg_p95}ms / {all_p95}ms"
+        )
+        pos_mean = lat.get("positive_cases_mean_ms", 0.0)
+        neg_mean = lat.get("negative_cases_mean_ms", 0.0)
+        all_mean = lat.get("overall_mean_ms", lat.get("guard_mean_ms", 0.0))
+        print(
+            f"  Guard Latency Mean (pos/neg/all):      "
+            f"{pos_mean}ms / {neg_mean}ms / {all_mean}ms"
+        )
+        opos_p95 = olat.get("positive_cases_p95_ms", 0.0)
+        oneg_p95 = olat.get("negative_cases_p95_ms", 0.0)
+        oall_p95 = olat.get("overall_p95_ms", 0.0)
+        print(
+            f"  Overall Latency P95 (pos/neg/all):     "
+            f"{opos_p95}ms / {oneg_p95}ms / {oall_p95}ms"
+        )
+        opos_mean = olat.get("positive_cases_mean_ms", 0.0)
+        oneg_mean = olat.get("negative_cases_mean_ms", 0.0)
+        oall_mean = olat.get("overall_mean_ms", 0.0)
+        print(
+            f"  Overall Latency Mean (pos/neg/all):    "
+            f"{opos_mean}ms / {oneg_mean}ms / {oall_mean}ms"
+        )
+        idle_mb, peak_mb = mem["idle_rss_mb"], mem["peak_rss_mb"]
+        print(
+            f"  Memory RSS (idle/pos/neg/peak):        "
+            f"{idle_mb}MB / {pos_mem}MB / {neg_mem}MB / {peak_mb}MB"
+        )
+        failed_calls, total_calls, fail_rate = (
+            err["failed_calls"],
+            err["total_calls"],
+            err["failure_rate_pct"],
+        )
+        print(
+            f"  API Error Metrics (failed/total):      "
+            f"{failed_calls}/{total_calls} ({fail_rate})"
+        )
 
     print("\n" + "=" * 80 + "\n")
 
@@ -91,7 +135,8 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None]]):
         Panel.fit(
             "[bold cyan]Guardrail Experiments — Final Results Comparison[/bold cyan]\n"
             "[dim]Positive cases: should NOT be blocked | Negative cases: SHOULD be blocked\n"
-            "Metric: higher accuracy = better | lower latency = faster | lower memory = lighter[/dim]",
+            "Metric: higher accuracy = better | lower latency = faster | "
+            "lower memory = lighter[/dim]",
             border_style="cyan",
         )
     )
@@ -136,8 +181,10 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None]]):
 
         guard_mean = lat.get("overall_mean_ms", lat.get("guard_mean_ms", 0.0))
         lat_display = (
-            f"P95: {lat['positive_cases_p95_ms']} / {lat['negative_cases_p95_ms']} / {lat['overall_p95_ms']} ms\n"
-            f"[dim]Mean: {lat.get('positive_cases_mean_ms', 0.0)} / {lat.get('negative_cases_mean_ms', 0.0)} / {guard_mean} ms[/dim]"
+            f"P95: {lat['positive_cases_p95_ms']} / "
+            f"{lat['negative_cases_p95_ms']} / {lat['overall_p95_ms']} ms\n"
+            f"[dim]Mean: {lat.get('positive_cases_mean_ms', 0.0)} / "
+            f"{lat.get('negative_cases_mean_ms', 0.0)} / {guard_mean} ms[/dim]"
         )
 
         table.add_row(
@@ -151,7 +198,9 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None]]):
         )
 
     console.print(table)
-    console.print("\n[dim]Results compiled directly from each experiment's final_report.json.[/dim]\n")
+    console.print(
+        "\n[dim]Results compiled directly from each experiment's final_report.json.[/dim]\n"
+    )
 
 
 def main():

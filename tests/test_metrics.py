@@ -27,10 +27,20 @@ def test_reset_server_metrics_failure():
 
 def test_fetch_server_metrics():
     sample_metrics = {
-        "error_metrics": {"total_calls": 10, "successful_calls": 10, "failed_calls": 0, "failure_rate": 0.0},
+        "error_metrics": {
+            "total_calls": 10,
+            "successful_calls": 10,
+            "failed_calls": 0,
+            "failure_rate": 0.0,
+        },
         "guardrail_latency_ms": {"p50": 1.2, "p95": 2.4, "p99": 3.0, "mean": 1.5},
         "overall_latency_ms": {"p50": 30.0, "p95": 50.0, "p99": 60.0, "mean": 35.0},
-        "memory_footprint": {"idle_rss_mb": 100.0, "peak_rss_mb": 120.0, "delta_rss_mb": 20.0, "vms_mb": 300.0},
+        "memory_footprint": {
+            "idle_rss_mb": 100.0,
+            "peak_rss_mb": 120.0,
+            "delta_rss_mb": 20.0,
+            "vms_mb": 300.0,
+        },
     }
     with patch("requests.get") as mock_get:
         mock_get.return_value = MagicMock(status_code=200, json=lambda: sample_metrics)
@@ -43,7 +53,18 @@ def test_fetch_server_metrics():
 def test_parse_garak_attempts(tmp_path: Path):
     jsonl = tmp_path / "test.report.jsonl"
     with open(jsonl, "w") as f:
-        f.write(json.dumps({"entry_type": "eval", "probe": "dan.DanInTheWild", "passed": 8, "fails": 2, "total_evaluated": 10}) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "entry_type": "eval",
+                    "probe": "dan.DanInTheWild",
+                    "passed": 8,
+                    "fails": 2,
+                    "total_evaluated": 10,
+                }
+            )
+            + "\n"
+        )
         f.write(json.dumps({"entry_type": "attempt", "probe": "dan.DanInTheWild"}) + "\n")
         f.write(json.dumps({"entry_type": "attempt", "probe": "dan.DanInTheWild"}) + "\n")
 

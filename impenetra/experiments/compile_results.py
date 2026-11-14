@@ -16,7 +16,9 @@ from pathlib import Path
 from typing import Any
 
 
-def classify_probe_expectation(probe_name: str, goal: str = "", tags: list[str] | None = None) -> str:
+def classify_probe_expectation(
+    probe_name: str, goal: str = "", tags: list[str] | None = None
+) -> str:
     """
     Determine if a probe is expected to be allowed ('positive') or blocked ('negative').
     Positive cases: Benign culinary inquiries, safe prompts, on-charter questions.
@@ -27,7 +29,10 @@ def classify_probe_expectation(probe_name: str, goal: str = "", tags: list[str] 
     t_lower = [t.lower() for t in (tags or [])]
 
     # Explicit positive markers
-    if any(k in p_lower for k in ["on_charter", "oncharter", "culinary", "benign", "safe", "positive", "xstest"]):
+    if any(
+        k in p_lower
+        for k in ["on_charter", "oncharter", "culinary", "benign", "safe", "positive", "xstest"]
+    ):
         return "positive"
     if any(k in g_lower for k in ["legitimate", "culinary", "fulfill", "in-charter", "safe"]):
         if not any(k in g_lower for k in ["elicit", "disregard", "bypass", "exploit", "attack"]):
@@ -47,9 +52,11 @@ def parse_report_jsonl(jsonl_path: Path | str) -> dict[str, Any]:
     if not path.exists():
         return {}
 
-    attempts_data = {
-        "positive": {"total": 0, "allowed": 0, "blocked": 0, "prompts": []},
-        "negative": {"total": 0, "blocked": 0, "allowed": 0, "prompts": []},
+    pos_stats: dict[str, Any] = {"total": 0, "allowed": 0, "blocked": 0, "prompts": []}
+    neg_stats: dict[str, Any] = {"total": 0, "blocked": 0, "allowed": 0, "prompts": []}
+    attempts_data: dict[str, Any] = {
+        "positive": pos_stats,
+        "negative": neg_stats,
     }
 
     with open(path, "r", encoding="utf-8") as f:
@@ -63,8 +70,9 @@ def parse_report_jsonl(jsonl_path: Path | str) -> dict[str, Any]:
                 continue
 
             if entry.get("entry_type") == "attempt":
-                # In Garak, each attempt is logged twice: status=1 (generated) and status=2 (evaluated).
-                # Only status=2 contains detector results and final evaluation.
+                # In Garak, each attempt is logged twice: status=1 (generated) and
+                # status=2 (evaluated). Only status=2 contains detector results and
+                # final evaluation.
                 if entry.get("status") is not None and entry.get("status") != 2:
                     continue
 
@@ -86,17 +94,17 @@ def parse_report_jsonl(jsonl_path: Path | str) -> dict[str, Any]:
                 blocked = not has_breach
 
                 if expectation == "positive":
-                    attempts_data["positive"]["total"] += 1
+                    pos_stats["total"] += 1
                     if blocked:
-                        attempts_data["positive"]["blocked"] += 1
+                        pos_stats["blocked"] += 1
                     else:
-                        attempts_data["positive"]["allowed"] += 1
+                        pos_stats["allowed"] += 1
                 else:
-                    attempts_data["negative"]["total"] += 1
+                    neg_stats["total"] += 1
                     if blocked:
-                        attempts_data["negative"]["blocked"] += 1
+                        neg_stats["blocked"] += 1
                     else:
-                        attempts_data["negative"]["allowed"] += 1
+                        neg_stats["allowed"] += 1
 
     return attempts_data
 
@@ -127,7 +135,9 @@ def sanitize_results_dir(path: Path | str) -> str:
     return str(Path(p.parent.name) / p.name)
 
 
-def compile_experiment_results(results_dir: Path | str, experiment_name: str | None = None) -> dict[str, Any]:
+def compile_experiment_results(
+    results_dir: Path | str, experiment_name: str | None = None
+) -> dict[str, Any]:
     """
     Compile all results in an experiment directory and generate final_report files.
     """
@@ -168,15 +178,26 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
 
     # Identify benchmark vs garak reports
     bench_report = next(
-        (r for r in run_reports if r.get("run_type") == "bench" or "bench" in r.get("_source_file", "").lower()),
+        (
+            r
+            for r in run_reports
+            if r.get("run_type") == "bench" or "bench" in r.get("_source_file", "").lower()
+        ),
         None,
     )
     garak_report = next(
-        (r for r in run_reports if r.get("run_type") == "garak" or "garak" in r.get("_source_file", "").lower()),
+        (
+            r
+            for r in run_reports
+            if r.get("run_type") == "garak" or "garak" in r.get("_source_file", "").lower()
+        ),
         None,
     )
     if not bench_report:
-        print(f"⚠️  Note: No *_bench_report.json found in {r_dir} (Positive case telemetry not present)")
+        print(
+            f"⚠️  Note: No *_bench_report.json found in {r_dir} "
+            "(Positive case telemetry not present)"
+        )
     if not garak_report:
         print(f"⚠️  Note: No *_garak_report.json found in {r_dir} (Garak telemetry not present)")
 
@@ -230,7 +251,8 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
     bench_lat = bench_data.get("latency", {})
 
     # Positive cases (on-charter food queries):
-    # Strictly pull from benchmark reports or explicit bench_lat; NEVER fall back to Garak adversarial P95!
+    # Strictly pull from benchmark reports or explicit bench_lat; NEVER fall back to
+    # Garak adversarial P95!
     bench_glat = bench_report.get("guardrail_latency_ms", {}) if bench_report else {}
     bench_olat = bench_report.get("overall_latency_ms", {}) if bench_report else {}
 
@@ -338,7 +360,9 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
     ]
     if bench_lat.get("total_p95_ms"):
         all_overall_p95s.append(bench_lat["total_p95_ms"])
-    overall_all_p95 = max(all_overall_p95s) if all_overall_p95s else max(overall_pos_p95, overall_neg_p95)
+    overall_all_p95 = (
+        max(all_overall_p95s) if all_overall_p95s else max(overall_pos_p95, overall_neg_p95)
+    )
 
     all_overall_means = [
         r.get("overall_latency_ms", {}).get("mean")
@@ -347,7 +371,9 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
     ]
     if not all_overall_means and bench_lat.get("total_mean_ms"):
         all_overall_means.append(bench_lat["total_mean_ms"])
-    overall_all_mean = round(sum(all_overall_means) / len(all_overall_means), 2) if all_overall_means else 0.0
+    overall_all_mean = (
+        round(sum(all_overall_means) / len(all_overall_means), 2) if all_overall_means else 0.0
+    )
 
     # 6. Memory metrics (from server telemetry reports)
     idle_rss_candidates = []
@@ -408,7 +434,9 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
                 "accuracy_pct": f"{pos_acc * 100:.1f}%",
             },
             "negative_cases": {
-                "description": "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)",
+                "description": (
+                    "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)"
+                ),
                 "total": total_neg,
                 "blocked": blocked_neg,
                 "allowed": allowed_neg,
@@ -449,7 +477,8 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
                         0.0,
                         (
                             bench_report.get("memory_footprint", {}).get("peak_rss_mb")
-                            if bench_report and bench_report.get("memory_footprint", {}).get("peak_rss_mb")
+                            if bench_report
+                            and bench_report.get("memory_footprint", {}).get("peak_rss_mb")
                             else bench_mem.get("positive_rss_mb", idle_rss)
                         )
                         - idle_rss,
@@ -468,7 +497,8 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
                         0.0,
                         (
                             garak_report.get("memory_footprint", {}).get("peak_rss_mb")
-                            if garak_report and garak_report.get("memory_footprint", {}).get("peak_rss_mb")
+                            if garak_report
+                            and garak_report.get("memory_footprint", {}).get("peak_rss_mb")
                             else peak_rss
                         )
                         - idle_rss,
@@ -488,7 +518,11 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
         "source_files": {
             "garak_report": jsonl_files[0].name if jsonl_files else None,
             "bench_file": bench_files[0].name if bench_files else None,
-            "latest_run_report": [rf.name for rf in report_files if rf.name != "final_report.json"][0] if [rf.name for rf in report_files if rf.name != "final_report.json"] else None,
+            "latest_run_report": [rf.name for rf in report_files if rf.name != "final_report.json"][
+                0
+            ]
+            if [rf.name for rf in report_files if rf.name != "final_report.json"]
+            else None,
             "run_reports": [rf.name for rf in report_files if rf.name != "final_report.json"],
         },
     }
@@ -505,7 +539,7 @@ def compile_experiment_results(results_dir: Path | str, experiment_name: str | N
         f.write(md_content)
 
     clean_dir = sanitize_results_dir(r_dir)
-    print(f"\n✅ Compiled Final Report:")
+    print("\n✅ Compiled Final Report:")
     print(f"   JSON: {clean_dir}/{json_path.name}")
     print(f"   MD:   {clean_dir}/{md_path.name}\n")
 
@@ -529,28 +563,67 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         "",
         "## 1. Accuracy Across Positive & Negative Cases",
         "",
-        "| Case Type | Criteria | Total Evaluated | Correct Decisions | Incorrect Decisions | Accuracy |",
+        (
+            "| Case Type | Criteria | Total Evaluated | Correct Decisions | "
+            "Incorrect Decisions | Accuracy |"
+        ),
         "| :--- | :--- | :--- | :--- | :--- | :--- |",
-        f"| **Positive Cases** | Should NOT be blocked | {pos['total']} | {pos['allowed']} (Allowed) | {pos['blocked']} (False Refusal) | **{pos['accuracy_pct']}** |",
-        f"| **Negative Cases** | Should be blocked | {neg['total']} | {neg['blocked']} (Blocked) | {neg['allowed']} (Bypassed) | **{neg['accuracy_pct']}** |",
-        f"| **Overall** | Combined | {pos['total'] + neg['total']} | {pos['allowed'] + neg['blocked']} | {pos['blocked'] + neg['allowed']} | **{acc['overall_accuracy_pct']}** |",
+        (
+            f"| **Positive Cases** | Should NOT be blocked | {pos['total']} | "
+            f"{pos['allowed']} (Allowed) | {pos['blocked']} (False Refusal) | "
+            f"**{pos['accuracy_pct']}** |"
+        ),
+        (
+            f"| **Negative Cases** | Should be blocked | {neg['total']} | "
+            f"{neg['blocked']} (Blocked) | {neg['allowed']} (Bypassed) | "
+            f"**{neg['accuracy_pct']}** |"
+        ),
+        (
+            f"| **Overall** | Combined | {pos['total'] + neg['total']} | "
+            f"{pos['allowed'] + neg['blocked']} | {pos['blocked'] + neg['allowed']} | "
+            f"**{acc['overall_accuracy_pct']}** |"
+        ),
         "",
         "## 2. Guardrail & Overall Latency Footprint (P95 & Mean)",
         "",
-        "| Case Type | Guardrail P95 | Guardrail Mean | Overall Latency P95 | Overall Latency Mean |",
+        (
+            "| Case Type | Guardrail P95 | Guardrail Mean | Overall Latency P95 | "
+            "Overall Latency Mean |"
+        ),
         "| :--- | :--- | :--- | :--- | :--- |",
-        f"| **Positive Cases** | `{lat['positive_cases_p95_ms']}ms` | `{lat['positive_cases_mean_ms']}ms` | `{olat['positive_cases_p95_ms']}ms` | `{olat['positive_cases_mean_ms']}ms` |",
-        f"| **Negative Cases** | `{lat['negative_cases_p95_ms']}ms` | `{lat['negative_cases_mean_ms']}ms` | `{olat['negative_cases_p95_ms']}ms` | `{olat['negative_cases_mean_ms']}ms` |",
-        f"| **Overall** | **`{lat['overall_p95_ms']}ms`** | **`{lat['overall_mean_ms']}ms`** | **`{olat['overall_p95_ms']}ms`** | **`{olat['overall_mean_ms']}ms`** |",
+        (
+            f"| **Positive Cases** | `{lat['positive_cases_p95_ms']}ms` | "
+            f"`{lat['positive_cases_mean_ms']}ms` | `{olat['positive_cases_p95_ms']}ms` | "
+            f"`{olat['positive_cases_mean_ms']}ms` |"
+        ),
+        (
+            f"| **Negative Cases** | `{lat['negative_cases_p95_ms']}ms` | "
+            f"`{lat['negative_cases_mean_ms']}ms` | `{olat['negative_cases_p95_ms']}ms` | "
+            f"`{olat['negative_cases_mean_ms']}ms` |"
+        ),
+        (
+            f"| **Overall** | **`{lat['overall_p95_ms']}ms`** | "
+            f"**`{lat['overall_mean_ms']}ms`** | **`{olat['overall_p95_ms']}ms`** | "
+            f"**`{olat['overall_mean_ms']}ms`** |"
+        ),
         "",
         "## 3. Server Memory Footprint",
         "",
         "| Condition | Peak RSS (MB) | Delta from Idle (MB) |",
         "| :--- | :--- | :--- |",
         f"| **Idle Baseline** | `{mem['idle_rss_mb']} MB` | `0.0 MB` |",
-        f"| **Positive Cases** | `{mem['positive_cases']['peak_rss_mb']} MB` | `+{mem['positive_cases']['delta_rss_mb']} MB` |",
-        f"| **Negative Cases** | `{mem['negative_cases']['peak_rss_mb']} MB` | `+{mem['negative_cases']['delta_rss_mb']} MB` |",
-        f"| **Peak Overall** | **`{mem['peak_rss_mb']} MB`** | **`+{mem['delta_rss_mb']} MB`** |",
+        (
+            f"| **Positive Cases** | `{mem['positive_cases']['peak_rss_mb']} MB` | "
+            f"`+{mem['positive_cases']['delta_rss_mb']} MB` |"
+        ),
+        (
+            f"| **Negative Cases** | `{mem['negative_cases']['peak_rss_mb']} MB` | "
+            f"`+{mem['negative_cases']['delta_rss_mb']} MB` |"
+        ),
+        (
+            f"| **Peak Overall** | **`{mem['peak_rss_mb']} MB`** | "
+            f"**`+{mem['delta_rss_mb']} MB`** |"
+        ),
         "",
         "## 4. Error Metrics & API Robustness",
         "",

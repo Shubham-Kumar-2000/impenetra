@@ -230,4 +230,3 @@ def test_missing_credentials_throws_exception(monkeypatch):
     monkeypatch.setenv("FAT_SECRET_CONSUMER_SECRET", "88149870cacc491dbffd7ec6f6e567eb")
     monkeypatch.undo()
     importlib.reload(ft)
-

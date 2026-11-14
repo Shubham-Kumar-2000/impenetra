@@ -1,6 +1,7 @@
 """Tests for the experiment results cleaner utility."""
 
 from pathlib import Path
+
 from impenetra.experiments.cleaner import clear_results_dir
 
 
@@ -13,13 +14,13 @@ def test_clear_results_dir_preserves_gitkeep(tmp_path: Path):
     gitkeep.touch()
 
     bench_json = results_dir / "20261114_bench.json"
-    bench_json.write_text("{\"status\": \"ok\"}")
+    bench_json.write_text('{"status": "ok"}')
 
     garak_log = results_dir / "20261114_garak.log"
     garak_log.write_text("log content")
 
     report_jsonl = results_dir / "20261114.report.jsonl"
-    report_jsonl.write_text("{\"entry\": 1}")
+    report_jsonl.write_text('{"entry": 1}')
 
     final_report = results_dir / "final_report.json"
     final_report.write_text("{}")

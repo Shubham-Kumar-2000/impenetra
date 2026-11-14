@@ -201,17 +201,19 @@ def run_benchmark(
         if verbose:
             print(f"    [{i:2d}/{len(BENIGN_PROMPTS)}] {status:<30} {prompt[:40]}...")
 
-        attempts.append({
-            "prompt": prompt,
-            "type": "positive",
-            "expected_blocked": False,
-            "blocked": blocked,
-            "ok": res["ok"],
-            "status_code": res["status_code"],
-            "guard_ms": res.get("guard_ms"),
-            "total_ms": res.get("total_ms"),
-            "response_snippet": res.get("response", ""),
-        })
+        attempts.append(
+            {
+                "prompt": prompt,
+                "type": "positive",
+                "expected_blocked": False,
+                "blocked": blocked,
+                "ok": res["ok"],
+                "status_code": res["status_code"],
+                "guard_ms": res.get("guard_ms"),
+                "total_ms": res.get("total_ms"),
+                "response_snippet": res.get("response", ""),
+            }
+        )
 
     # 2. Negative Cases: Adversarial
     print(f"\n  Running {len(ADVERSARIAL_PROMPTS)} Negative Cases (Adversarial Probes)...")
@@ -235,18 +237,20 @@ def run_benchmark(
         if verbose:
             print(f"    [{i:2d}/{len(ADVERSARIAL_PROMPTS)}] {status:<30} {prompt[:40]}...")
 
-        attempts.append({
-            "prompt": prompt,
-            "type": "negative",
-            "subtype": "adversarial",
-            "expected_blocked": True,
-            "blocked": blocked,
-            "ok": res["ok"],
-            "status_code": res["status_code"],
-            "guard_ms": res.get("guard_ms"),
-            "total_ms": res.get("total_ms"),
-            "response_snippet": res.get("response", ""),
-        })
+        attempts.append(
+            {
+                "prompt": prompt,
+                "type": "negative",
+                "subtype": "adversarial",
+                "expected_blocked": True,
+                "blocked": blocked,
+                "ok": res["ok"],
+                "status_code": res["status_code"],
+                "guard_ms": res.get("guard_ms"),
+                "total_ms": res.get("total_ms"),
+                "response_snippet": res.get("response", ""),
+            }
+        )
 
     # 3. Negative Cases: Off-Charter Utility Theft
     print(f"\n  Running {len(OFF_CHARTER_PROMPTS)} Negative Cases (Off-Charter Queries)...")
@@ -270,18 +274,20 @@ def run_benchmark(
         if verbose:
             print(f"    [{i:2d}/{len(OFF_CHARTER_PROMPTS)}] {status:<30} {prompt[:40]}...")
 
-        attempts.append({
-            "prompt": prompt,
-            "type": "negative",
-            "subtype": "off_charter",
-            "expected_blocked": True,
-            "blocked": blocked,
-            "ok": res["ok"],
-            "status_code": res["status_code"],
-            "guard_ms": res.get("guard_ms"),
-            "total_ms": res.get("total_ms"),
-            "response_snippet": res.get("response", ""),
-        })
+        attempts.append(
+            {
+                "prompt": prompt,
+                "type": "negative",
+                "subtype": "off_charter",
+                "expected_blocked": True,
+                "blocked": blocked,
+                "ok": res["ok"],
+                "status_code": res["status_code"],
+                "guard_ms": res.get("guard_ms"),
+                "total_ms": res.get("total_ms"),
+                "response_snippet": res.get("response", ""),
+            }
+        )
 
     # Summarize accuracy counts
     total_pos = len(BENIGN_PROMPTS)
@@ -329,12 +335,20 @@ def run_benchmark(
             "overall_accuracy": round(overall_acc, 4),
             "adversarial_total": len(ADVERSARIAL_PROMPTS),
             "blocked": adv_blocked,
-            "block_rate": round(adv_blocked / len(ADVERSARIAL_PROMPTS), 4) if ADVERSARIAL_PROMPTS else 0.0,
-            "block_rate_pct": f"{(adv_blocked / len(ADVERSARIAL_PROMPTS)) * 100:.1f}%" if ADVERSARIAL_PROMPTS else "0.0%",
+            "block_rate": round(adv_blocked / len(ADVERSARIAL_PROMPTS), 4)
+            if ADVERSARIAL_PROMPTS
+            else 0.0,
+            "block_rate_pct": f"{(adv_blocked / len(ADVERSARIAL_PROMPTS)) * 100:.1f}%"
+            if ADVERSARIAL_PROMPTS
+            else "0.0%",
             "off_charter_total": len(OFF_CHARTER_PROMPTS),
             "off_charter_blocked": off_blocked,
-            "off_charter_block_rate": round(off_blocked / len(OFF_CHARTER_PROMPTS), 4) if OFF_CHARTER_PROMPTS else 0.0,
-            "off_charter_block_rate_pct": f"{(off_blocked / len(OFF_CHARTER_PROMPTS)) * 100:.1f}%" if OFF_CHARTER_PROMPTS else "0.0%",
+            "off_charter_block_rate": round(off_blocked / len(OFF_CHARTER_PROMPTS), 4)
+            if OFF_CHARTER_PROMPTS
+            else 0.0,
+            "off_charter_block_rate_pct": f"{(off_blocked / len(OFF_CHARTER_PROMPTS)) * 100:.1f}%"
+            if OFF_CHARTER_PROMPTS
+            else "0.0%",
         },
         "attempts": attempts,
     }
@@ -345,8 +359,14 @@ def run_benchmark(
         json.dump(bench_results, f, indent=2)
 
     print(f"\n  ✓ Benchmark results saved → {out_file}")
-    print(f"    Positive Accuracy (Benign Allowed):   {pos_acc * 100:.1f}% ({pos_allowed}/{total_pos})")
-    print(f"    Negative Accuracy (Attacks Blocked):  {neg_acc * 100:.1f}% ({neg_blocked}/{total_neg})")
+    print(
+        "    Positive Accuracy (Benign Allowed):   "
+        f"{pos_acc * 100:.1f}% ({pos_allowed}/{total_pos})"
+    )
+    print(
+        "    Negative Accuracy (Attacks Blocked):  "
+        f"{neg_acc * 100:.1f}% ({neg_blocked}/{total_neg})"
+    )
     print(f"    Overall Accuracy:                    {overall_acc * 100:.1f}%")
     return bench_results
 
@@ -356,7 +376,9 @@ def main():
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--experiment", required=True)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--pid", type=int, default=None, help="Process ID (kept for backwards compatibility)")
+    parser.add_argument(
+        "--pid", type=int, default=None, help="Process ID (kept for backwards compatibility)"
+    )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
 

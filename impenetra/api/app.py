@@ -202,7 +202,10 @@ def create_app(
 
     @application.get("/metrics")
     async def get_metrics():
-        """Retrieve recorded telemetry records, error metrics, memory footprint, and latency statistics."""
+        """
+        Retrieve recorded telemetry records, error metrics, memory footprint,
+        and latency statistics.
+        """
         return application.state.telemetry.to_dict()
 
     @application.get("/metrics/summary")
@@ -264,7 +267,9 @@ def create_app(
                 )
 
             if application.state.llm_caller:
-                safe_response = application.state.llm_caller([ChatMessage(role="user", content=req.prompt)])
+                safe_response = application.state.llm_caller(
+                    [ChatMessage(role="user", content=req.prompt)]
+                )
             else:
                 safe_response = DEFAULT_ACCEPTANCE.format(prompt=req.prompt)
 

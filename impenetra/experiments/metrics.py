@@ -35,7 +35,9 @@ def reset_server_metrics(server_url: str = "http://127.0.0.1:8000", timeout: flo
         return False
 
 
-def fetch_server_metrics(server_url: str = "http://127.0.0.1:8000", timeout: float = 10.0) -> dict[str, Any]:
+def fetch_server_metrics(
+    server_url: str = "http://127.0.0.1:8000", timeout: float = 10.0
+) -> dict[str, Any]:
     """Fetch current telemetry and memory footprint from the server /metrics endpoint."""
     try:
         resp = requests.get(f"{server_url.rstrip('/')}/metrics", timeout=timeout)
@@ -53,9 +55,28 @@ def fetch_server_metrics(server_url: str = "http://127.0.0.1:8000", timeout: flo
             "failure_rate": 0.0,
             "errors_by_type": {},
         },
-        "guardrail_latency_ms": {"p50": 0.0, "p95": 0.0, "p99": 0.0, "mean": 0.0, "min": 0.0, "max": 0.0},
-        "overall_latency_ms": {"p50": 0.0, "p95": 0.0, "p99": 0.0, "mean": 0.0, "min": 0.0, "max": 0.0},
-        "memory_footprint": {"idle_rss_mb": 0.0, "peak_rss_mb": 0.0, "delta_rss_mb": 0.0, "vms_mb": 0.0},
+        "guardrail_latency_ms": {
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "mean": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+        },
+        "overall_latency_ms": {
+            "p50": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "mean": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+        },
+        "memory_footprint": {
+            "idle_rss_mb": 0.0,
+            "peak_rss_mb": 0.0,
+            "delta_rss_mb": 0.0,
+            "vms_mb": 0.0,
+        },
         "records": [],
     }
 
@@ -148,7 +169,12 @@ def main():
     )
     parser.add_argument("--url", default="http://127.0.0.1:8000", help="FastAPI server URL")
     parser.add_argument("--experiment", default="experiment", help="Experiment name")
-    parser.add_argument("--run-type", default="bench", choices=["bench", "garak", "custom"], help="Run type identifier")
+    parser.add_argument(
+        "--run-type",
+        default="bench",
+        choices=["bench", "garak", "custom"],
+        help="Run type identifier",
+    )
     parser.add_argument("--out-dir", default=".", help="Directory to save report in")
     parser.add_argument("--timestamp", default=None, help="Timestamp string prefix")
     parser.add_argument("--report-jsonl", default=None, help="Path to Garak report.jsonl")

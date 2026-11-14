@@ -10,11 +10,11 @@ preventing unbounded memory growth or expensive sorting on long-running servers.
 """
 
 import collections
-from dataclasses import asdict, dataclass
 import datetime
 import os
 import random
 import threading
+from dataclasses import asdict, dataclass
 from typing import Any
 
 import psutil
@@ -49,7 +49,9 @@ def calculate_percentile(values: list[float], p: float) -> float:
     upper_idx = min(lower_idx + 1, n - 1)
     weight = rank - lower_idx
 
-    interpolated = sorted_vals[lower_idx] + weight * (sorted_vals[upper_idx] - sorted_vals[lower_idx])
+    interpolated = sorted_vals[lower_idx] + weight * (
+        sorted_vals[upper_idx] - sorted_vals[lower_idx]
+    )
     return round(interpolated, 3)
 
 
@@ -193,7 +195,9 @@ class TelemetryCollector:
         mem = self._get_current_mem()
         record = TelemetryRecord(
             prompt_snippet=prompt[:80].replace("\n", " ").strip(),
-            guardrail_latency_ms=round(guardrail_latency_ms, 3) if guardrail_latency_ms is not None else None,
+            guardrail_latency_ms=round(guardrail_latency_ms, 3)
+            if guardrail_latency_ms is not None
+            else None,
             overall_latency_ms=round(overall_latency_ms, 3),
             blocked=blocked,
             status_code=status_code,
@@ -206,7 +210,9 @@ class TelemetryCollector:
             if status_code >= 400 or error_message:
                 self.failed_calls += 1
                 if error_message:
-                    self.errors_by_type[error_message] = self.errors_by_type.get(error_message, 0) + 1
+                    self.errors_by_type[error_message] = (
+                        self.errors_by_type.get(error_message, 0) + 1
+                    )
                 elif status_code >= 400:
                     err_key = f"HTTP_{status_code}"
                     self.errors_by_type[err_key] = self.errors_by_type.get(err_key, 0) + 1
@@ -241,7 +247,10 @@ class TelemetryCollector:
         pass
 
     def get_summary(self) -> dict[str, Any]:
-        """Compute aggregated error metrics, latency percentiles, and current memory footprint on demand."""
+        """
+        Compute aggregated error metrics, latency percentiles, and current
+        memory footprint on demand.
+        """
         current_mem = self._get_current_mem()
         with self._lock:
             if current_mem["rss_mb"] > self.peak_rss_mb:

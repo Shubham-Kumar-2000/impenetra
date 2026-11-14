@@ -8,9 +8,9 @@ Meta's LlamaGuard-3 8B hosted on a Gradio Space ("llama-guard-space" or custom G
 import datetime
 import json
 import os
-from pathlib import Path
 import re
 import time
+from pathlib import Path
 from typing import Any, Tuple
 
 import requests
@@ -22,9 +22,7 @@ from impenetra.experiments.llamaguard_as_guardrail.prompt_format import (
 )
 
 DEFAULT_GRADIO_URL = os.getenv("LLAMA_GUARD_GRADIO_URL", "http://127.0.0.1:7860")
-DEFAULT_FAIL_OPEN_LOG_PATH = (
-    Path(__file__).resolve().parent / "results" / "fail_open.log"
-)
+DEFAULT_FAIL_OPEN_LOG_PATH = Path(__file__).resolve().parent / "results" / "fail_open.log"
 
 
 class GradioCallError(RuntimeError):
@@ -61,9 +59,7 @@ class LlamaGuardGuardrail(BaseGuardrail):
         self._client: Any = None
         self._client_init_attempted = False
         log_env = os.getenv("LLAMA_GUARD_FAIL_OPEN_LOG")
-        self._fail_open_log_path = Path(
-            fail_open_log_path or log_env or DEFAULT_FAIL_OPEN_LOG_PATH
-        )
+        self._fail_open_log_path = Path(fail_open_log_path or log_env or DEFAULT_FAIL_OPEN_LOG_PATH)
 
     @property
     def name(self) -> str:
@@ -214,9 +210,7 @@ class LlamaGuardGuardrail(BaseGuardrail):
                 else:
                     last_status_code = resp.status_code
                     last_resp_text = resp.text
-                    last_error = (
-                        f"HTTP {resp.status_code} from {endpoint}: {resp.text[:500]}"
-                    )
+                    last_error = f"HTTP {resp.status_code} from {endpoint}: {resp.text[:500]}"
             except Exception as e:
                 last_error = f"{type(e).__name__} connecting to {endpoint}: {e}"
                 continue
@@ -240,11 +234,11 @@ class LlamaGuardGuardrail(BaseGuardrail):
             try:
                 out = client.predict(prompt=text, api_name="/moderate_prompt")
                 return self._parse_gradio_output(out)
-            except Exception as e1:
+            except Exception:
                 try:
                     out = client.predict(text, api_name="/moderate_prompt")
                     return self._parse_gradio_output(out)
-                except Exception as e2:
+                except Exception:
                     try:
                         out = client.predict(text)
                         return self._parse_gradio_output(out)
@@ -274,9 +268,13 @@ class LlamaGuardGuardrail(BaseGuardrail):
             if not server_response:
                 resp = getattr(e, "response", None)
                 if resp is not None:
-                    server_response = f"HTTP {getattr(resp, 'status_code', 'unknown')}: {getattr(resp, 'text', '')}"
+                    status = getattr(resp, "status_code", "unknown")
+                    resp_text = getattr(resp, "text", "")
+                    server_response = f"HTTP {status}: {resp_text}"
                 else:
-                    server_response = "No response received (connection error, network down, or timeout)"
+                    server_response = (
+                        "No response received (connection error, network down, or timeout)"
+                    )
 
             # Log fail-open event to the results directory
             self._log_fail_open(
@@ -302,11 +300,7 @@ class LlamaGuardGuardrail(BaseGuardrail):
         elif details:
             desc = details
         else:
-            desc = (
-                "LlamaGuard verdict: safe"
-                if is_safe
-                else f"LlamaGuard verdict: {category}"
-            )
+            desc = "LlamaGuard verdict: safe" if is_safe else f"LlamaGuard verdict: {category}"
 
         return GuardrailResult(
             allowed=is_safe,

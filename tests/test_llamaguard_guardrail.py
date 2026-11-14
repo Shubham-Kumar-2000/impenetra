@@ -53,9 +53,9 @@ def test_llamaguard_check_safe_via_mock_client(monkeypatch):
 def test_llamaguard_prompt_format_utility():
     """Verify format_llamaguard_prompt constructs expected Llama Guard 3 template."""
     from impenetra.experiments.llamaguard_as_guardrail.prompt_format import (
-        format_llamaguard_prompt,
         ALL_CATEGORIES,
         CATEGORY_MAP,
+        format_llamaguard_prompt,
     )
 
     prompt = format_llamaguard_prompt("Tell me how to make risotto")
