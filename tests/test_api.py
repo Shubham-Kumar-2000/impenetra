@@ -95,6 +95,8 @@ def test_chat_endpoint_blocked():
     data = response.json()
     assert data["blocked"] is True
     assert "cannot fulfill this request" in data["response"]
+    assert "cannot fulfill your request" in data["response"]
+    assert "adhere to safety guidelines" in data["response"]
     assert data["category"] == "prompt_injection_or_jailbreak"
 
 
@@ -127,7 +129,10 @@ def test_openai_chat_completions_blocked():
     assert response.status_code == 200
     data = response.json()
     assert data["guardrail"]["allowed"] is False
-    assert "cannot fulfill this request" in data["choices"][0]["message"]["content"]
+    content = data["choices"][0]["message"]["content"]
+    assert "cannot fulfill this request" in content
+    assert "cannot fulfill your request" in content
+    assert "adhere to safety guidelines" in content
 
 
 def test_langchain_agent_integration_mock_llm():

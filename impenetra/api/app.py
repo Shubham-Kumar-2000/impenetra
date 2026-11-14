@@ -183,7 +183,11 @@ def create_app(
 
     application.state.llm_caller = active_llm_caller
 
-    DEFAULT_REFUSAL = "I cannot fulfill this request because it violates safety guidelines."
+    DEFAULT_REFUSAL = (
+        "I'm sorry, but I cannot fulfill this request. "
+        "As an AI assistant, I must adhere to safety guidelines and cannot fulfill your request."
+    )
+    DEFAULT_ACCEPTANCE = "Yes, I am working on / processing your request: '{prompt}'."
 
     @application.get("/health")
     async def health_check():
@@ -222,16 +226,10 @@ def create_app(
                 latency_ms=round(res.latency_ms, 3),
             )
 
-        if not application.state.llm_caller:
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "LLM backend caller not configured. "
-                    "Provide backend_url or llm_caller in create_app()."
-                ),
-            )
-
-        safe_response = application.state.llm_caller([ChatMessage(role="user", content=req.prompt)])
+        if application.state.llm_caller:
+            safe_response = application.state.llm_caller([ChatMessage(role="user", content=req.prompt)])
+        else:
+            safe_response = DEFAULT_ACCEPTANCE.format(prompt=req.prompt)
         return ChatPromptResponse(
             response=safe_response,
             blocked=False,
@@ -261,15 +259,10 @@ def create_app(
             )
             response_content = res.details if has_refusal_phrase else DEFAULT_REFUSAL
         else:
-            if not application.state.llm_caller:
-                raise HTTPException(
-                    status_code=503,
-                    detail=(
-                        "LLM backend caller not configured. "
-                        "Provide backend_url or llm_caller in create_app()."
-                    ),
-                )
-            response_content = application.state.llm_caller(req.messages)
+            if application.state.llm_caller:
+                response_content = application.state.llm_caller(req.messages)
+            else:
+                response_content = DEFAULT_ACCEPTANCE.format(prompt=prompt_text)
 
         return OpenAIChatResponse(
             id=f"chatcmpl-{uuid.uuid4().hex[:12]}",

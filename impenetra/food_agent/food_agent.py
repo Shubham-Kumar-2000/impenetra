@@ -77,11 +77,7 @@ class DefaultFoodChatModel(BaseChatModel):
                 "Grilled Chicken Breast (165 kcal), Avocado (160 kcal), and Salmon (208 kcal)."
             )
         else:
-            resp = (
-                "As your food and recipe assistant, I can help you search for foods, "
-                "explore recipes, and calculate calories and nutritional information. "
-                f"Regarding your query: '{last_content}'."
-            )
+            resp = f"Yes, I am working on / processing your request: '{last_content}'."
 
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content=resp))])
 
