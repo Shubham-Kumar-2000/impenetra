@@ -171,3 +171,81 @@ def test_compile_experiment_results_end_to_end(tmp_path: Path):
     # Re-compile to ensure pre-existing final_report.json is not self-referenced
     second_report = compile_experiment_results(results_dir, experiment_name="mock_experiment")
     assert second_report["source_files"]["latest_run_report"] == "20261114_run_report.json"
+
+
+def test_positive_latency_never_falls_back_to_adversarial_garak_run(tmp_path: Path):
+    """
+    Verifies:
+    1. positive_cases_p95_ms strictly pulls from benchmark run (never from adversarial garak run).
+    2. guard_mean_ms correctly averages reported means rather than P50 medians.
+    """
+    results_dir = tmp_path / "impenetra" / "experiments" / "test_exp" / "results"
+    results_dir.mkdir(parents=True)
+
+    # 1. Benchmark run report (earlier timestamp)
+    bench_report = results_dir / "20261114_100000_bench_report.json"
+    with open(bench_report, "w") as f:
+        json.dump(
+            {
+                "experiment": "test_exp",
+                "run_type": "bench",
+                "timestamp": "20261114_100000",
+                "guardrail_latency_ms": {
+                    "p50": 1.5,
+                    "p95": 2.2,
+                    "mean": 1.8,
+                },
+                "overall_latency_ms": {"p50": 20.0, "p95": 25.0},
+                "memory_footprint": {"idle_rss_mb": 100.0, "peak_rss_mb": 110.0},
+            },
+            f,
+        )
+
+    # 2. Garak run report (later timestamp: adversarial probes with high P95)
+    garak_report = results_dir / "20261114_101500_garak_report.json"
+    with open(garak_report, "w") as f:
+        json.dump(
+            {
+                "experiment": "test_exp",
+                "run_type": "garak",
+                "timestamp": "20261114_101500",
+                "guardrail_latency_ms": {
+                    "p50": 30.0,
+                    "p95": 95.0,  # Adversarial attack latency
+                    "mean": 40.0,
+                },
+                "overall_latency_ms": {"p50": 100.0, "p95": 250.0},
+                "memory_footprint": {"idle_rss_mb": 105.0, "peak_rss_mb": 160.0},
+            },
+            f,
+        )
+
+    # 3. Simple bench.json with prompt outcomes
+    bench_json = results_dir / "20261114_100000_bench.json"
+    with open(bench_json, "w") as f:
+        json.dump(
+            {
+                "experiment": "test_exp",
+                "summary": {
+                    "positive_cases": {"total": 12, "allowed": 12, "blocked": 0},
+                    "negative_cases": {"total": 23, "blocked": 20, "allowed": 3},
+                },
+            },
+            f,
+        )
+
+    report = compile_experiment_results(results_dir, experiment_name="test_exp")
+
+    # Positive latency MUST be from bench (2.2ms), NEVER from garak (95.0ms)
+    assert report["guardrail_latency"]["positive_cases_p95_ms"] == 2.2
+    assert report["guardrail_latency"]["negative_cases_p95_ms"] == 95.0
+    assert report["guardrail_latency"]["overall_p95_ms"] == 95.0
+
+    # Guard mean MUST be the average of reported means: (1.8 + 40.0) / 2 = 20.9ms
+    # (NOT average of P50 medians (1.5 + 30.0) / 2 = 15.75ms)
+    assert report["guardrail_latency"]["guard_mean_ms"] == 20.9
+
+    # Peak memory for positive cases must be 110.0MB and negative 160.0MB
+    assert report["memory_footprint"]["positive_cases"]["peak_rss_mb"] == 110.0
+    assert report["memory_footprint"]["negative_cases"]["peak_rss_mb"] == 160.0
+    assert report["memory_footprint"]["peak_rss_mb"] == 160.0
