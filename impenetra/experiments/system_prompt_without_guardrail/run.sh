@@ -44,11 +44,19 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     --out "$RESULTS_DIR/${TIMESTAMP}_bench.json"
 
 echo "Running garak probes on $EXPERIMENT..."
+GENERATIONS="${GARAK_GENERATIONS:-1}"
+PARALLEL_ATTEMPTS="${GARAK_PARALLEL_ATTEMPTS:-32}"
+SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter}}"
+echo "   → Generations: $GENERATIONS | Parallel attempts: $PARALLEL_ATTEMPTS"
 .venv/bin/python3 -m impenetra.garak_plugins.setup install &>/dev/null || true
+
 .venv/bin/python3 -m garak \
-    --model_type rest \
+    --target_type rest \
     --config "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
-    --probes dan,off_charter.OffCharterComprehensive \
+    --generator_option_file "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
+    --spec "$SPEC" \
+    --generations "$GENERATIONS" \
+    --parallel_attempts "$PARALLEL_ATTEMPTS" \
     --report_prefix "$RESULTS_DIR/${TIMESTAMP}_baseline" \
     2>&1 | tee "$RESULTS_DIR/${TIMESTAMP}_garak.log" || true
 

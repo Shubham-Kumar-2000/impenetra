@@ -70,7 +70,7 @@ The script will:
 1. ✅ Run pre-flight checks (Ollama, nemoguardrails, garak)
 2. 🚀 Start the FastAPI+NeMo server on port 8000 (allow 15–30s for init)
 3. 🧪 Smoke test with a benign prompt
-4. 🔥 Run garak with probes: `dan`, `promptinject`, `jailbreak`
+4. 🔥 Run garak with probes: `dan`, `promptinject`, `off_charter`
 5. 💾 Save results to `impenetra/experiments/nemo_guardrails/results/`
 6. 🧹 Stop the server
 

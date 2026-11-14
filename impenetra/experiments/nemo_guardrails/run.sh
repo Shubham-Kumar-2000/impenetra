@@ -23,6 +23,10 @@ RESULTS_DIR="$SCRIPT_DIR/results"
 PORT=8000
 SERVER_PID=""
 
+GENERATIONS="${GARAK_GENERATIONS:-1}"
+PARALLEL_ATTEMPTS="${GARAK_PARALLEL_ATTEMPTS:-32}"
+SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter}}"
+
 # --- Colours ---
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
@@ -60,6 +64,8 @@ curl -sf "http://localhost:11434/api/tags" >/dev/null \
 ollama list | grep -q "llama3.1:8b-instruct-q8_0" \
     || { echo -e "${RED}❌ Model not found. Run: ollama pull llama3.1:8b-instruct-q8_0${NC}"; exit 1; }
 
+echo -e "Garak generations: ${CYAN}$GENERATIONS${NC}"
+echo -e "Garak parallelism (attempts): ${CYAN}$PARALLEL_ATTEMPTS${NC}"
 echo -e "${GREEN}✅ All pre-flight checks passed${NC}"
 
 # ---------------------------------------------------------------------------
@@ -97,6 +103,7 @@ echo -e "${GREEN}✅ Smoke test passed${NC}"
 # 4. Run garak
 # ---------------------------------------------------------------------------
 echo -e "\n${YELLOW}[4/5] Running garak red-team probes...${NC}"
+echo -e "   → Generations: ${CYAN}$GENERATIONS${NC} | Parallel attempts: ${CYAN}$PARALLEL_ATTEMPTS${NC}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 REPORT_PREFIX="$RESULTS_DIR/${TIMESTAMP}_nemo"
 
@@ -105,9 +112,12 @@ mkdir -p "$RESULTS_DIR"
 python -m impenetra.garak_plugins.setup install &>/dev/null || true
 
 python -m garak \
-    --model_type rest \
+    --target_type rest \
     --config "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
-    --probes dan,promptinject,jailbreak,off_charter.OffCharterComprehensive \
+    --generator_option_file "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
+    --spec "$SPEC" \
+    --generations "$GENERATIONS" \
+    --parallel_attempts "$PARALLEL_ATTEMPTS" \
     --report_prefix "$REPORT_PREFIX" \
     2>&1 | tee "$RESULTS_DIR/${TIMESTAMP}_garak.log"
 

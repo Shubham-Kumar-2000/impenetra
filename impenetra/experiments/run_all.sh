@@ -10,7 +10,7 @@
 # For each experiment:
 #   - Starts the FastAPI server
 #   - Runs the latency + memory benchmark (benchmark.py)
-#   - Runs garak red-team probes (dan, dra, encoding subset)
+#   - Runs garak red-team probes (promptinject, dan, encoding, grandma, goodside, sysprompt_extraction, off_charter)
 #   - Saves timestamped results to impenetra/experiments/<name>/results/
 #   - Stops the server
 #
@@ -34,8 +34,10 @@ PYTHON="${PROJECT_ROOT}/.venv/bin/python3"
 # shellcheck disable=SC1091
 source "${PROJECT_ROOT}/.venv/bin/activate" 2>/dev/null || true
 SKIP_GARAK="${SKIP_GARAK:-0}"
-# Default: fast probes including adversarial jailbreaks, encoding bypasses, and off-charter utility theft
-GARAK_PROBES="${GARAK_PROBES:-dan.Ablation_Dan_11_0,dan.AutoDANCached,dan.DanInTheWild,dra.DRA,encoding.InjectBase64,encoding.InjectROT13,off_charter.OffCharterComprehensive}"
+GARAK_GENERATIONS="${GARAK_GENERATIONS:-1}"
+GARAK_PARALLEL_ATTEMPTS="${GARAK_PARALLEL_ATTEMPTS:-32}"
+# Default: prompt injection, DAN jailbreaks, encoding bypasses, grandma, goodside, sysprompt extraction, and off-charter probes
+GARAK_SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter}}"
 GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_config.json"
 
 # --- Colours -----------------------------------------------------------------
@@ -163,12 +165,15 @@ run_experiment() {
 
     # --- Garak ---------------------------------------------------------------
     if [[ "$SKIP_GARAK" != "1" ]]; then
-        step "Running garak (probes: $GARAK_PROBES)"
+        step "Running garak (spec: $GARAK_SPEC, generations: $GARAK_GENERATIONS, parallel attempts: $GARAK_PARALLEL_ATTEMPTS)"
         local garak_prefix="$results_dir/${TIMESTAMP}_garak"
         "$PYTHON" -m garak \
-            --model_type rest \
+            --target_type rest \
             --config "$GARAK_CONFIG" \
-            --probes "$GARAK_PROBES" \
+            --generator_option_file "$GARAK_CONFIG" \
+            --spec "$GARAK_SPEC" \
+            --generations "$GARAK_GENERATIONS" \
+            --parallel_attempts "$GARAK_PARALLEL_ATTEMPTS" \
             --report_prefix "$garak_prefix" \
             2>&1 | tee "$results_dir/${TIMESTAMP}_garak.log"
         ok "Garak complete"
