@@ -98,3 +98,39 @@ def test_telemetry_bounded_records_and_reset():
     reset_summary = collector.get_summary()
     assert reset_summary["error_metrics"]["total_calls"] == 0
     assert reset_summary["memory_footprint"]["idle_rss_mb"] > 0
+
+
+def test_streaming_latency_tracker_math_and_bounded_memory():
+    from impenetra.profiling.telemetry import StreamingLatencyTracker
+
+    # Cap reservoir sample to 500 items
+    tracker = StreamingLatencyTracker(max_samples=500)
+
+    # Stream 2,000 latency observations (values 1 to 2000)
+    for i in range(1, 2001):
+        tracker.add(float(i))
+
+    stats = tracker.get_stats()
+
+    # Exact mathematical statistics
+    assert stats["min"] == 1.0
+    assert stats["max"] == 2000.0
+    assert stats["mean"] == 1000.5
+    assert tracker.count == 2000
+
+    # Strictly bounded memory: exactly 500 samples stored
+    assert len(tracker._samples) == 500
+
+    # Percentiles estimated from unbiased reservoir sample
+    assert 800.0 <= stats["p50"] <= 1200.0
+    assert 1750.0 <= stats["p95"] <= 2000.0
+    assert stats["p99"] >= stats["p95"]
+
+    # Reset clears all math and samples
+    tracker.reset()
+    assert tracker.count == 0
+    assert len(tracker._samples) == 0
+    empty_stats = tracker.get_stats()
+    assert empty_stats["mean"] == 0.0
+    assert empty_stats["min"] == 0.0
+    assert empty_stats["max"] == 0.0

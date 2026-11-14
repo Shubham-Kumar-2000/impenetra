@@ -3,13 +3,17 @@ impenetra/profiling/telemetry.py
 ================================
 In-memory telemetry collector for tracking guardrail request latency, API errors,
 and server process memory footprint (RSS/VMS) on demand without background threads.
+
+Latency statistics are computed using streaming mathematics (exact running count,
+sum, mean, min, and max in O(1) space) and bounded reservoir sampling for percentiles,
+preventing unbounded memory growth or expensive sorting on long-running servers.
 """
 
 import collections
 from dataclasses import asdict, dataclass
 import datetime
 import os
-import statistics
+import random
 import threading
 from typing import Any
 
@@ -49,14 +53,88 @@ def calculate_percentile(values: list[float], p: float) -> float:
     return round(interpolated, 3)
 
 
+class StreamingLatencyTracker:
+    """
+    Mathematical streaming tracker for latency metrics.
+
+    - Count, Sum, Mean, Min, Max: Computed using exact O(1) streaming mathematics
+      without retaining individual latency records.
+    - Percentiles (P50, P95, P99): Computed over a bounded reservoir sample
+      (Algorithm R) of at most max_samples (default 1000 floats = 8KB), ensuring
+      O(1) strictly bounded memory and fast O(M log M) sorting regardless of
+      total request volume (100 to 100,000+ requests).
+    """
+
+    def __init__(self, max_samples: int = 1000):
+        self.max_samples = max_samples
+        self.count: int = 0
+        self.total_sum: float = 0.0
+        self.min_val: float = 0.0
+        self.max_val: float = 0.0
+        self._samples: list[float] = []
+
+    def add(self, val: float) -> None:
+        """Process a new observation into running math and reservoir sample."""
+        val = round(val, 3)
+        if self.count == 0:
+            self.min_val = val
+            self.max_val = val
+        else:
+            if val < self.min_val:
+                self.min_val = val
+            if val > self.max_val:
+                self.max_val = val
+
+        self.count += 1
+        self.total_sum += val
+
+        # Bounded reservoir sampling (Algorithm R)
+        if len(self._samples) < self.max_samples:
+            self._samples.append(val)
+        else:
+            # Replace elements with decreasing probability: max_samples / count
+            idx = random.randint(0, self.count - 1)
+            if idx < self.max_samples:
+                self._samples[idx] = val
+
+    def reset(self) -> None:
+        """Reset all math accumulators and sample buffer."""
+        self.count = 0
+        self.total_sum = 0.0
+        self.min_val = 0.0
+        self.max_val = 0.0
+        self._samples.clear()
+
+    def get_stats(self) -> dict[str, float]:
+        """Compute summary statistics."""
+        if self.count == 0:
+            return {
+                "p50": 0.0,
+                "p95": 0.0,
+                "p99": 0.0,
+                "mean": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+            }
+
+        mean = round(self.total_sum / self.count, 3)
+        return {
+            "p50": calculate_percentile(self._samples, 50),
+            "p95": calculate_percentile(self._samples, 95),
+            "p99": calculate_percentile(self._samples, 99),
+            "mean": mean,
+            "min": round(self.min_val, 3),
+            "max": round(self.max_val, 3),
+        }
+
+
 class TelemetryCollector:
     """
     Lightweight, thread-safe telemetry collector tracking request latency,
     API errors, and process memory footprint (RSS/VMS) on demand.
 
-    No background threads: queries memory dynamically during record_request()
-    and whenever /metrics or /metrics/summary is called. Records are cleared on
-    reset() and bounded by max_records to prevent unbounded memory growth.
+    Uses streaming mathematics and bounded reservoir buffers to ensure strictly
+    O(1) memory footprint and zero background polling threads.
     """
 
     def __init__(self, max_records: int = 1000):
@@ -69,14 +147,28 @@ class TelemetryCollector:
         self.total_calls: int = 0
         self.failed_calls: int = 0
         self.errors_by_type: dict[str, int] = {}
-        self.guardrail_latencies: list[float] = []
-        self.overall_latencies: list[float] = []
+
+        # Streaming mathematical latency trackers (O(1) memory)
+        self.guardrail_tracker = StreamingLatencyTracker(max_samples=max_records)
+        self.overall_tracker = StreamingLatencyTracker(max_samples=max_records)
 
         # Memory baselines
         current_mem = self._get_current_mem()
         self.idle_rss_mb: float = current_mem["rss_mb"]
         self.peak_rss_mb: float = current_mem["rss_mb"]
         self.vms_mb: float = current_mem["vms_mb"]
+
+    @property
+    def guardrail_latencies(self) -> list[float]:
+        """Bounded sample of recent guardrail latencies."""
+        with self._lock:
+            return list(self.guardrail_tracker._samples)
+
+    @property
+    def overall_latencies(self) -> list[float]:
+        """Bounded sample of recent overall latencies."""
+        with self._lock:
+            return list(self.overall_tracker._samples)
 
     def _get_current_mem(self) -> dict[str, float]:
         try:
@@ -120,9 +212,8 @@ class TelemetryCollector:
                     self.errors_by_type[err_key] = self.errors_by_type.get(err_key, 0) + 1
 
             if guardrail_latency_ms is not None:
-                self.guardrail_latencies.append(round(guardrail_latency_ms, 3))
-            if overall_latency_ms is not None:
-                self.overall_latencies.append(round(overall_latency_ms, 3))
+                self.guardrail_tracker.add(guardrail_latency_ms)
+            self.overall_tracker.add(overall_latency_ms)
 
             if mem["rss_mb"] > self.peak_rss_mb:
                 self.peak_rss_mb = mem["rss_mb"]
@@ -139,8 +230,8 @@ class TelemetryCollector:
             self.total_calls = 0
             self.failed_calls = 0
             self.errors_by_type.clear()
-            self.guardrail_latencies.clear()
-            self.overall_latencies.clear()
+            self.guardrail_tracker.reset()
+            self.overall_tracker.reset()
             self.idle_rss_mb = mem["rss_mb"]
             self.peak_rss_mb = mem["rss_mb"]
             self.vms_mb = mem["vms_mb"]
@@ -163,25 +254,11 @@ class TelemetryCollector:
             total_calls = self.total_calls
             failed_calls = self.failed_calls
             errors_by_type = dict(self.errors_by_type)
-            guard_times = list(self.guardrail_latencies)
-            overall_times = list(self.overall_latencies)
+            guard_stats = self.guardrail_tracker.get_stats()
+            overall_stats = self.overall_tracker.get_stats()
 
         successful_calls = total_calls - failed_calls
         failure_rate = round(failed_calls / total_calls, 4) if total_calls > 0 else 0.0
-
-        guard_p50 = calculate_percentile(guard_times, 50)
-        guard_p95 = calculate_percentile(guard_times, 95)
-        guard_p99 = calculate_percentile(guard_times, 99)
-        guard_mean = round(statistics.mean(guard_times), 3) if guard_times else 0.0
-        guard_min = round(min(guard_times), 3) if guard_times else 0.0
-        guard_max = round(max(guard_times), 3) if guard_times else 0.0
-
-        overall_p50 = calculate_percentile(overall_times, 50)
-        overall_p95 = calculate_percentile(overall_times, 95)
-        overall_p99 = calculate_percentile(overall_times, 99)
-        overall_mean = round(statistics.mean(overall_times), 3) if overall_times else 0.0
-        overall_min = round(min(overall_times), 3) if overall_times else 0.0
-        overall_max = round(max(overall_times), 3) if overall_times else 0.0
 
         return {
             "error_metrics": {
@@ -191,22 +268,8 @@ class TelemetryCollector:
                 "failure_rate": failure_rate,
                 "errors_by_type": errors_by_type,
             },
-            "guardrail_latency_ms": {
-                "p50": guard_p50,
-                "p95": guard_p95,
-                "p99": guard_p99,
-                "mean": guard_mean,
-                "min": guard_min,
-                "max": guard_max,
-            },
-            "overall_latency_ms": {
-                "p50": overall_p50,
-                "p95": overall_p95,
-                "p99": overall_p99,
-                "mean": overall_mean,
-                "min": overall_min,
-                "max": overall_max,
-            },
+            "guardrail_latency_ms": guard_stats,
+            "overall_latency_ms": overall_stats,
             "memory_footprint": {
                 "idle_rss_mb": idle_rss,
                 "peak_rss_mb": peak_rss,
