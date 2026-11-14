@@ -151,10 +151,14 @@ case "${SAMPLE_ONLY:-0}" in
         ;;
 esac
 
+# Configure off_charter probes to use mitigation.MitigationBypass instead of LLM judge for LlamaGuard
+PROBE_OPTIONS='{"off_charter": {"primary_detector": "mitigation.MitigationBypass", "extended_detectors": []}}'
+
 python -m garak \
     --target_type rest \
     --config "$GARAK_CONFIG" \
     --generator_option_file "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
+    --probe_options "$PROBE_OPTIONS" \
     --spec "$SPEC" \
     --generations "$GENERATIONS" \
     --parallel_attempts "$PARALLEL_ATTEMPTS" \
