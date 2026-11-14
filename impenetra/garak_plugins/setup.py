@@ -16,6 +16,11 @@ import shutil
 import sys
 from pathlib import Path
 
+if "GARAK_HOME" not in os.environ:
+    os.environ["GARAK_HOME"] = "/tmp/garak"
+if "GARAK_LOG_FILE" not in os.environ:
+    os.environ["GARAK_LOG_FILE"] = "/tmp/garak.log"
+
 
 def _get_garak_dir() -> Path:
     try:

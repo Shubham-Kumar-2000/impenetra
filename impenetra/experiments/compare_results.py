@@ -44,6 +44,18 @@ def find_latest_bench(results_dir: Path, experiment: str) -> dict | None:
         return json.load(f)
 
 
+def find_final_report(results_dir: Path, experiment: str) -> dict | None:
+    bench_dir = results_dir / experiment / "results"
+    final_file = bench_dir / "final_report.json"
+    if final_file.exists():
+        try:
+            with open(final_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
+
+
 def parse_garak_report(results_dir: Path, experiment: str) -> dict | None:
     """Parse most recent garak JSONL report for pass/fail per probe."""
     bench_dir = results_dir / experiment / "results"
@@ -107,15 +119,28 @@ def fmt_ms(val) -> str:
     return f"{val:.0f}ms"
 
 
-def print_table_plain(all_data: list[tuple[str, str, dict | None, dict | None]]):
+def print_table_plain(all_data: list[tuple[str, str, dict | None, dict | None, dict | None]]):
     """Plain text fallback when rich is not available."""
     print("\n" + "=" * 80)
     print("  GUARDRAIL EXPERIMENT RESULTS COMPARISON")
     print("=" * 80)
 
-    for exp_id, label, bench, garak in all_data:
+    for exp_id, label, bench, garak, final_rep in all_data:
         print(f"\n── {label.replace(chr(10), ' ')} ──")
-        if bench:
+        if final_rep:
+            acc = final_rep["accuracy"]
+            pos = acc["positive_cases"]
+            neg = acc["negative_cases"]
+            lat = final_rep["guardrail_latency"]
+            mem = final_rep["memory_footprint"]
+            print(f"  Positive Cases Acc (should NOT block): {pos['accuracy_pct']} ({pos['allowed']}/{pos['total']})")
+            print(f"  Negative Cases Acc (SHOULD block):     {neg['accuracy_pct']} ({neg['blocked']}/{neg['total']})")
+            print(f"  Overall Accuracy:                      {acc['overall_accuracy_pct']}")
+            print(f"  Guard Latency P95 (pos/neg/all):       {lat['positive_cases_p95_ms']}ms / {lat['negative_cases_p95_ms']}ms / {lat['overall_p95_ms']}ms")
+            print(f"  Memory (idle/pos/neg/peak):            {mem['idle_rss_mb']}MB / {mem['positive_cases']['peak_rss_mb']}MB / {mem['negative_cases']['peak_rss_mb']}MB / {mem['peak_rss_mb']}MB")
+            err = final_rep["error_metrics"]
+            print(f"  Error Metrics (failed/total):          {err['failed_calls']}/{err['total_calls']} ({err['failure_rate_pct']})")
+        elif bench:
             acc = bench["accuracy"]
             lat = bench["latency"]
             mem = bench["memory"]
@@ -143,17 +168,63 @@ def print_table_plain(all_data: list[tuple[str, str, dict | None, dict | None]])
         print()
 
 
-def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
+def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None, dict | None]]):
     console = Console()
 
     console.print(
         Panel.fit(
             "[bold cyan]Guardrail Experiment Results — Comparison[/bold cyan]\n"
-            "[dim]Metric: lower bypass rate = stronger protection | "
-            "lower latency = faster | lower MB = lighter[/dim]",
+            "[dim]Positive cases: should NOT be blocked | Negative cases: SHOULD be blocked\n"
+            "Metric: lower bypass rate = stronger protection | lower latency = faster | lower MB = lighter[/dim]",
             border_style="cyan",
         )
     )
+
+    # ── Final Report Summary (Positive vs Negative Cases) ─────────────────────
+    has_final = any(final_rep for _, _, _, _, final_rep in all_data)
+    if has_final:
+        summary_table = Table(
+            title="📊  Summary Report — Positive & Negative Cases Breakdown",
+            box=box.ROUNDED,
+            header_style="bold green",
+            show_lines=True,
+        )
+        summary_table.add_column("Experiment", style="bold", width=26)
+        summary_table.add_column("Pos Acc\n(should NOT block)", justify="center", width=18)
+        summary_table.add_column("Neg Acc\n(SHOULD block)", justify="center", width=18)
+        summary_table.add_column("Overall Acc", justify="center", width=14)
+        summary_table.add_column("Guardrail Latency\nP95 (pos / neg)", justify="center", width=22)
+        summary_table.add_column("Peak Memory\n(pos / neg / peak)", justify="center", width=22)
+        summary_table.add_column("API Errors", justify="center", width=12)
+
+        for exp_id, label, bench, garak, final_rep in all_data:
+            exp_label = label.replace("\n", " — ")
+            if final_rep:
+                acc = final_rep["accuracy"]
+                pos = acc["positive_cases"]
+                neg = acc["negative_cases"]
+                lat = final_rep["guardrail_latency"]
+                mem = final_rep["memory_footprint"]
+                err = final_rep["error_metrics"]
+
+                pos_col = "green" if pos["accuracy"] >= 0.95 else "yellow" if pos["accuracy"] >= 0.8 else "red"
+                neg_col = "green" if neg["accuracy"] >= 0.8 else "yellow" if neg["accuracy"] >= 0.5 else "red"
+                all_col = "green" if acc["overall_accuracy"] >= 0.85 else "yellow"
+
+                summary_table.add_row(
+                    exp_label,
+                    f"[{pos_col}]{pos['accuracy_pct']}[/{pos_col}]\n({pos['allowed']}/{pos['total']})",
+                    f"[{neg_col}]{neg['accuracy_pct']}[/{neg_col}]\n({neg['blocked']}/{neg['total']})",
+                    f"[{all_col}]{acc['overall_accuracy_pct']}[/{all_col}]",
+                    f"{lat['positive_cases_p95_ms']}ms / {lat['negative_cases_p95_ms']}ms",
+                    f"{mem['positive_cases']['peak_rss_mb']} / {mem['negative_cases']['peak_rss_mb']} / {mem['peak_rss_mb']} MB",
+                    f"{err['failed_calls']}/{err['total_calls']}",
+                )
+            else:
+                summary_table.add_row(exp_label, *["—"] * 6)
+
+        console.print(summary_table)
+        console.print()
 
     # ── Accuracy Table ──────────────────────────────────────────────────────
     acc_table = Table(
@@ -169,7 +240,7 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
     acc_table.add_column("Bar", width=24)
     acc_table.add_column("Garak Bypass Rate", justify="center", width=18)
 
-    for exp_id, label, bench, garak in all_data:
+    for exp_id, label, bench, garak, _ in all_data:
         exp_label = label.replace("\n", " — ")
         if bench:
             acc = bench["accuracy"]
@@ -225,7 +296,7 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
     lat_table.add_column("Round-trip p50\n(adversarial)", justify="right", width=16)
     lat_table.add_column("Round-trip p50\n(benign)", justify="right", width=16)
 
-    for exp_id, label, bench, garak in all_data:
+    for exp_id, label, bench, garak, _ in all_data:
         exp_label = label.replace("\n", " — ")
         if bench:
             lat = bench["latency"]
@@ -257,8 +328,8 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
     mem_table.add_column("VMS loaded", justify="right", width=14)
     mem_table.add_column("Bar (idle)", width=22)
 
-    max_rss = max((b["memory"]["idle_rss_mb"] for _, _, b, _ in all_data if b), default=1000)
-    for exp_id, label, bench, garak in all_data:
+    max_rss = max((b["memory"]["idle_rss_mb"] for _, _, b, _, _ in all_data if b), default=1000)
+    for exp_id, label, bench, garak, _ in all_data:
         exp_label = label.replace("\n", " — ")
         if bench:
             mem = bench["memory"]
@@ -279,7 +350,7 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None, dict | None]]):
     console.print()
 
     # ── Garak per-probe breakdown ─────────────────────────────────────────────
-    for exp_id, label, bench, garak in all_data:
+    for exp_id, label, bench, garak, _ in all_data:
         if not garak or not garak.get("probes"):
             continue
         probe_table = Table(
@@ -327,8 +398,9 @@ def main():
     for exp_id, label in EXPERIMENTS:
         bench = find_latest_bench(results_dir, exp_id)
         garak = parse_garak_report(results_dir, exp_id)
-        all_data.append((exp_id, label, bench, garak))
-        if not bench:
+        final_rep = find_final_report(results_dir, exp_id)
+        all_data.append((exp_id, label, bench, garak, final_rep))
+        if not bench and not final_rep:
             missing.append(exp_id)
 
     if missing:

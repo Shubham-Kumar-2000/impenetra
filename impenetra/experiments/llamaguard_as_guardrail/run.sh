@@ -54,10 +54,14 @@ echo -e "${NC}"
 # ---------------------------------------------------------------------------
 # 1. Pre-flight checks
 # ---------------------------------------------------------------------------
-echo -e "${YELLOW}[1/5] Pre-flight checks...${NC}"
+echo -e "${YELLOW}[1/6] Pre-flight checks & clearing existing results...${NC}"
 
 command -v python  &>/dev/null || { echo -e "${RED}❌ python not found${NC}"; exit 1; }
-command -v python  -m garak --help &>/dev/null 2>&1 || { echo -e "${RED}❌ garak not installed. Run: pip install -e '.[dev]'${NC}"; exit 1; }
+python -m garak --help &>/dev/null 2>&1 || { echo -e "${RED}❌ garak not installed. Run: pip install -e '.[dev]'${NC}"; exit 1; }
+
+# Clear existing results in this experiment directory
+python -m impenetra.experiments.cleaner --dir "$RESULTS_DIR"
+echo -e "${GREEN}✓ Cleared existing results in $RESULTS_DIR${NC}"
 
 echo -e "Target Gradio URL: ${CYAN}$GRADIO_URL${NC}"
 echo -e "Garak generations: ${CYAN}$GENERATIONS${NC}"
@@ -76,7 +80,7 @@ echo -e "${GREEN}✅ All pre-flight checks passed${NC}"
 # ---------------------------------------------------------------------------
 # 2. Start the guardrail server
 # ---------------------------------------------------------------------------
-echo -e "\n${YELLOW}[2/5] Starting LlamaGuard server on port $PORT...${NC}"
+echo -e "\n${YELLOW}[2/6] Starting LlamaGuard server on port $PORT...${NC}"
 cd "$PROJECT_ROOT"
 python impenetra/experiments/llamaguard_as_guardrail/server.py &
 SERVER_PID=$!
@@ -96,7 +100,7 @@ done
 # ---------------------------------------------------------------------------
 # 3. Smoke test
 # ---------------------------------------------------------------------------
-echo -e "\n${YELLOW}[3/5] Running smoke test...${NC}"
+echo -e "\n${YELLOW}[3/6] Running smoke test...${NC}"
 SMOKE=$(curl -sf -X POST "http://127.0.0.1:$PORT/v1/chat/completions" \
     -H "Content-Type: application/json" \
     -d '{"model":"test","messages":[{"role":"user","content":"How many calories in an apple?"}]}')
@@ -104,14 +108,38 @@ echo "Smoke response: $(echo "$SMOKE" | python -c "import sys,json; d=json.load(
 echo -e "${GREEN}✅ Smoke test passed${NC}"
 
 # ---------------------------------------------------------------------------
-# 4. Run garak
+# 4. Run Benchmark (On-charter food & benign queries + baseline attacks)
 # ---------------------------------------------------------------------------
-echo -e "\n${YELLOW}[4/5] Running garak red-team probes...${NC}"
-echo -e "   → Generations: ${CYAN}$GENERATIONS${NC} | Parallel attempts: ${CYAN}$PARALLEL_ATTEMPTS${NC}"
+echo -e "\n${YELLOW}[4/6] Running on-charter & adversarial benchmark...${NC}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+mkdir -p "$RESULTS_DIR"
+
+# Reset server metrics before benchmark
+python -m impenetra.experiments.metrics reset --url "http://127.0.0.1:$PORT"
+
+# Benchmark simply tries prompts and stores prompt outcomes in bench.json
+python impenetra/experiments/benchmark.py \
+    --url "http://127.0.0.1:$PORT" \
+    --experiment "$EXPERIMENT" \
+    --out "$RESULTS_DIR/${TIMESTAMP}_bench.json"
+
+# Record benchmark metrics from server telemetry (/metrics)
+python -m impenetra.experiments.metrics record \
+    --experiment "$EXPERIMENT" \
+    --run-type "bench" \
+    --url "http://127.0.0.1:$PORT" \
+    --out-dir "$RESULTS_DIR" \
+    --timestamp "$TIMESTAMP"
+
+# ---------------------------------------------------------------------------
+# 5. Run Garak (Red-team adversarial probes)
+# ---------------------------------------------------------------------------
+echo -e "\n${YELLOW}[5/6] Running garak red-team probes...${NC}"
+echo -e "   → Generations: ${CYAN}$GENERATIONS${NC} | Parallel attempts: ${CYAN}$PARALLEL_ATTEMPTS${NC}"
 REPORT_PREFIX="$RESULTS_DIR/${TIMESTAMP}_llamaguard"
 
-mkdir -p "$RESULTS_DIR"
+# Reset server metrics before Garak
+python -m impenetra.experiments.metrics reset --url "http://127.0.0.1:$PORT"
 
 python -m impenetra.garak_plugins.setup install &>/dev/null || true
 
@@ -127,10 +155,36 @@ python -m garak \
 
 echo -e "\n${GREEN}✅ Garak scan complete${NC}"
 
+# Copy from garak_home if garak saved elsewhere
+garak_home="${GARAK_HOME:-$HOME/.local/share/garak}"
+if [[ -d "$garak_home/runs" ]]; then
+    latest_run=$(ls -t "$garak_home/runs/" 2>/dev/null | head -1)
+    if [[ -n "$latest_run" ]]; then
+        cp -r "$garak_home/runs/$latest_run"* "$RESULTS_DIR/" 2>/dev/null || true
+    fi
+fi
+
+# Find report.jsonl in RESULTS_DIR
+REPORT_JSONL=$(ls -t "$RESULTS_DIR"/*.report.jsonl 2>/dev/null | head -1 || true)
+
+# Record Garak metrics from server telemetry (/metrics)
+python -m impenetra.experiments.metrics record \
+    --experiment "$EXPERIMENT" \
+    --run-type "garak" \
+    --url "http://127.0.0.1:$PORT" \
+    --out-dir "$RESULTS_DIR" \
+    ${REPORT_JSONL:+--report-jsonl "$REPORT_JSONL"} \
+    --timestamp "$TIMESTAMP"
+
 # ---------------------------------------------------------------------------
-# 5. Summary
+# 6. Compile Final Report & Summary
 # ---------------------------------------------------------------------------
-echo -e "\n${YELLOW}[5/5] Results saved:${NC}"
+echo -e "\n${YELLOW}[6/6] Compiling final report...${NC}"
+python -m impenetra.experiments.compile_results \
+    --results-dir "$RESULTS_DIR" \
+    --experiment "$EXPERIMENT"
+
+echo -e "\n${YELLOW}Results saved in $RESULTS_DIR:${NC}"
 ls -lh "$RESULTS_DIR/${TIMESTAMP}"* 2>/dev/null || echo "(check $RESULTS_DIR/)"
 if [[ -f "$RESULTS_DIR/fail_open.log" ]]; then
     FAIL_COUNT=$(grep -c "FAIL-OPEN EVENT" "$RESULTS_DIR/fail_open.log" || true)
