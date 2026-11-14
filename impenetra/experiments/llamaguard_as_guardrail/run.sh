@@ -2,8 +2,7 @@
 # =============================================================================
 # Experiment 1: LlamaGuard-as-Guardrail (Gradio Space Integration)
 # =============================================================================
-# Starts the FastAPI guardrail server connecting to a LlamaGuard Gradio Space
-# (llama-guard-space or custom Gradio URL), runs garak red-team probes against it,
+# Starts the FastAPI guardrail server connecting to a LlamaGuard Gradio URL, runs garak red-team probes against it,
 # saves results to impenetra/experiments/llamaguard_as_guardrail/results/, then cleans up.
 #
 # Usage:
@@ -15,7 +14,7 @@
 #   bash impenetra/experiments/llamaguard_as_guardrail/run.sh https://username-llama-guard-space.hf.space
 #
 # Prerequisites:
-#   - LlamaGuard Gradio Space running (local or Hugging Face Space)
+#   - LlamaGuard Gradio URL
 #   - pip install -e ".[dev]"
 # =============================================================================
 set -euo pipefail
