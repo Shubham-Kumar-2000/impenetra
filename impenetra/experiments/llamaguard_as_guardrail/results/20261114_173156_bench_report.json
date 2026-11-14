@@ -1,0 +1,35 @@
+{
+  "experiment": "llamaguard_as_guardrail",
+  "run_type": "bench",
+  "timestamp": "20261114_173156",
+  "server_url": "http://127.0.0.1:8000",
+  "error_metrics": {
+    "total_calls": 35,
+    "successful_calls": 35,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "errors_by_type": {}
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 110.5,
+    "peak_rss_mb": 112.83,
+    "delta_rss_mb": 2.33,
+    "vms_mb": 477472.33
+  },
+  "guardrail_latency_ms": {
+    "p50": 377.505,
+    "p95": 534.686,
+    "p99": 598.26,
+    "mean": 402.908,
+    "min": 283.582,
+    "max": 625.422
+  },
+  "overall_latency_ms": {
+    "p50": 378.843,
+    "p95": 534.709,
+    "p99": 598.282,
+    "mean": 404.562,
+    "min": 286.932,
+    "max": 625.449
+  }
+}
