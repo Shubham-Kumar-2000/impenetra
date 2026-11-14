@@ -20,6 +20,7 @@ from impenetra.experiments.llamaguard_as_guardrail.prompt_format import (
     CATEGORY_MAP,
     format_llamaguard_prompt,
 )
+from gradio_client import Client 
 
 DEFAULT_GRADIO_URL = os.getenv("LLAMA_GUARD_GRADIO_URL", "http://127.0.0.1:7860")
 DEFAULT_FAIL_OPEN_LOG_PATH = Path(__file__).resolve().parent / "results" / "fail_open.log"
@@ -123,12 +124,9 @@ class LlamaGuardGuardrail(BaseGuardrail):
         if not self._client_init_attempted:
             self._client_init_attempted = True
             try:
-                from gradio_client import Client  # type: ignore[import-untyped]
-
                 self._client = Client(self._gradio_url)
             except Exception:
                 self._client = None
-        return self._client
         return self._client
 
     def _parse_gradio_output(self, out: Any) -> Tuple[bool, str, str]:
