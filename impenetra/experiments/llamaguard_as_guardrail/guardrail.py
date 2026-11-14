@@ -14,13 +14,13 @@ from pathlib import Path
 from typing import Any, Tuple
 
 import requests
+from gradio_client import Client
 
 from impenetra.core.guardrail import BaseGuardrail, GuardrailResult
 from impenetra.experiments.llamaguard_as_guardrail.prompt_format import (
     CATEGORY_MAP,
     format_llamaguard_prompt,
 )
-from gradio_client import Client 
 
 DEFAULT_GRADIO_URL = os.getenv("LLAMA_GUARD_GRADIO_URL", "http://127.0.0.1:7860")
 DEFAULT_FAIL_OPEN_LOG_PATH = Path(__file__).resolve().parent / "results" / "fail_open.log"
