@@ -13,6 +13,7 @@ dependencies = [
     "transformers>=4.45.0",
     "sentence-transformers>=3.0.0",
     "tokenizers>=0.20.0",
+    "llama-cookbook>=0.0.5",
 
     # NeMo Guardrails (benchmark baseline)
     "nemoguardrails>=0.11.0",
@@ -64,6 +65,7 @@ include = ["impenetra*"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
@@ -86,6 +88,9 @@ module = [
     "nest_asyncio.*",
     "garak.*",
     "garak",
+    "llama_cookbook.*",
+    "gradio_client.*",
+    "gradio_client",
 ]
 ignore_missing_imports = true
 

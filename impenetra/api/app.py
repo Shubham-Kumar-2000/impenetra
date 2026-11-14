@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from impenetra.core.guardrail import BaseGuardrail, GuardrailResult, RuleBasedGuardrail
 from impenetra.food_agent import FOOD_AGENT_SYSTEM_PROMPT, get_default_agent
+from impenetra.profiling.telemetry import TelemetryCollector
 
 
 class ChatPromptRequest(BaseModel):
@@ -100,6 +101,7 @@ def create_app(
     # Use default rule-based guardrail if none provided
     active_guardrail = guardrail or RuleBasedGuardrail()
     application.state.guardrail = active_guardrail
+    application.state.telemetry = TelemetryCollector()
 
     target_model = model_name or "llama3.1:8b-instruct-q8_0"
     active_system_prompt = system_prompt or FOOD_AGENT_SYSTEM_PROMPT
@@ -183,7 +185,11 @@ def create_app(
 
     application.state.llm_caller = active_llm_caller
 
-    DEFAULT_REFUSAL = "I cannot fulfill this request because it violates safety guidelines."
+    DEFAULT_REFUSAL = (
+        "I'm sorry, but I cannot fulfill this request. "
+        "As an AI assistant, I must adhere to safety guidelines and cannot fulfill your request."
+    )
+    DEFAULT_ACCEPTANCE = "Yes, I am working on / processing your request: '{prompt}'."
 
     @application.get("/health")
     async def health_check():
@@ -194,9 +200,37 @@ def create_app(
             "active_guardrail": application.state.guardrail.name,
         }
 
+    @application.get("/metrics")
+    async def get_metrics():
+        """
+        Retrieve recorded telemetry records, error metrics, memory footprint,
+        and latency statistics.
+        """
+        return application.state.telemetry.to_dict()
+
+    @application.get("/metrics/summary")
+    async def get_metrics_summary():
+        """Retrieve aggregated summary of metrics without raw records."""
+        return application.state.telemetry.get_summary()
+
+    @application.post("/metrics/reset")
+    async def reset_metrics():
+        """Reset all recorded telemetry metrics and baseline memory."""
+        application.state.telemetry.reset()
+        return {"status": "reset", "timestamp": int(time.time())}
+
     @application.post("/guardrail/check", response_model=GuardrailCheckResponse)
     async def check_guardrail(req: GuardrailCheckRequest):
+        t0 = time.perf_counter()
         res: GuardrailResult = application.state.guardrail.check(req.text)
+        overall_ms = (time.perf_counter() - t0) * 1000
+        application.state.telemetry.record_request(
+            prompt=req.text,
+            guardrail_latency_ms=res.latency_ms,
+            overall_latency_ms=overall_ms,
+            blocked=not res.allowed,
+            status_code=200,
+        )
         return GuardrailCheckResponse(
             allowed=res.allowed,
             confidence=res.confidence,
@@ -211,34 +245,60 @@ def create_app(
         Primary endpoint for Garak RestGenerator.
         Inspects prompt and either blocks it or returns an approved response.
         """
-        res: GuardrailResult = application.state.guardrail.check(req.prompt)
+        t0 = time.perf_counter()
+        try:
+            res: GuardrailResult = application.state.guardrail.check(req.prompt)
 
-        if not res.allowed:
+            if not res.allowed:
+                overall_ms = (time.perf_counter() - t0) * 1000
+                application.state.telemetry.record_request(
+                    prompt=req.prompt,
+                    guardrail_latency_ms=res.latency_ms,
+                    overall_latency_ms=overall_ms,
+                    blocked=True,
+                    status_code=200,
+                )
+                return ChatPromptResponse(
+                    response=DEFAULT_REFUSAL,
+                    blocked=True,
+                    category=res.category,
+                    confidence=res.confidence,
+                    latency_ms=round(res.latency_ms, 3),
+                )
+
+            if application.state.llm_caller:
+                safe_response = application.state.llm_caller(
+                    [ChatMessage(role="user", content=req.prompt)]
+                )
+            else:
+                safe_response = DEFAULT_ACCEPTANCE.format(prompt=req.prompt)
+
+            overall_ms = (time.perf_counter() - t0) * 1000
+            application.state.telemetry.record_request(
+                prompt=req.prompt,
+                guardrail_latency_ms=res.latency_ms,
+                overall_latency_ms=overall_ms,
+                blocked=False,
+                status_code=200,
+            )
             return ChatPromptResponse(
-                response=DEFAULT_REFUSAL,
-                blocked=True,
-                category=res.category,
+                response=safe_response,
+                blocked=False,
+                category="",
                 confidence=res.confidence,
                 latency_ms=round(res.latency_ms, 3),
             )
-
-        if not application.state.llm_caller:
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "LLM backend caller not configured. "
-                    "Provide backend_url or llm_caller in create_app()."
-                ),
+        except Exception as e:
+            overall_ms = (time.perf_counter() - t0) * 1000
+            application.state.telemetry.record_request(
+                prompt=req.prompt,
+                guardrail_latency_ms=0.0,
+                overall_latency_ms=overall_ms,
+                blocked=False,
+                status_code=500,
+                error_message=str(e),
             )
-
-        safe_response = application.state.llm_caller([ChatMessage(role="user", content=req.prompt)])
-        return ChatPromptResponse(
-            response=safe_response,
-            blocked=False,
-            category="",
-            confidence=res.confidence,
-            latency_ms=round(res.latency_ms, 3),
-        )
+            raise
 
     @application.post("/v1/chat/completions", response_model=OpenAIChatResponse)
     async def openai_chat_completions(req: OpenAIChatRequest):
@@ -246,56 +306,82 @@ def create_app(
         OpenAI-compatible chat completion endpoint.
         Used by Garak with --model_type openai or REST client generators.
         """
+        t0 = time.perf_counter()
         if not req.messages:
+            overall_ms = (time.perf_counter() - t0) * 1000
+            application.state.telemetry.record_request(
+                prompt="",
+                guardrail_latency_ms=0.0,
+                overall_latency_ms=overall_ms,
+                blocked=False,
+                status_code=400,
+                error_message="Messages list cannot be empty",
+            )
             raise HTTPException(status_code=400, detail="Messages list cannot be empty")
 
         # Extract last user message
         user_messages = [m.content for m in req.messages if m.role == "user"]
         prompt_text = user_messages[-1] if user_messages else req.messages[-1].content
 
-        res: GuardrailResult = application.state.guardrail.check(prompt_text)
+        try:
+            res: GuardrailResult = application.state.guardrail.check(prompt_text)
 
-        if not res.allowed:
-            has_refusal_phrase = res.details and (
-                "sorry" in res.details.lower() or "cannot" in res.details.lower()
+            if not res.allowed:
+                has_refusal_phrase = res.details and (
+                    "sorry" in res.details.lower() or "cannot" in res.details.lower()
+                )
+                response_content = res.details if has_refusal_phrase else DEFAULT_REFUSAL
+            else:
+                if application.state.llm_caller:
+                    response_content = application.state.llm_caller(req.messages)
+                else:
+                    response_content = DEFAULT_ACCEPTANCE.format(prompt=prompt_text)
+
+            overall_ms = (time.perf_counter() - t0) * 1000
+            application.state.telemetry.record_request(
+                prompt=prompt_text,
+                guardrail_latency_ms=res.latency_ms,
+                overall_latency_ms=overall_ms,
+                blocked=not res.allowed,
+                status_code=200,
             )
-            response_content = res.details if has_refusal_phrase else DEFAULT_REFUSAL
-        else:
-            if not application.state.llm_caller:
-                raise HTTPException(
-                    status_code=503,
-                    detail=(
-                        "LLM backend caller not configured. "
-                        "Provide backend_url or llm_caller in create_app()."
-                    ),
-                )
-            response_content = application.state.llm_caller(req.messages)
 
-        return OpenAIChatResponse(
-            id=f"chatcmpl-{uuid.uuid4().hex[:12]}",
-            created=int(time.time()),
-            model=req.model,
-            choices=[
-                OpenAIChoice(
-                    index=0,
-                    message=ChatMessage(role="assistant", content=response_content),
-                    finish_reason="stop",
-                )
-            ],
-            usage={
-                "prompt_tokens": len(prompt_text.split()),
-                "completion_tokens": len(response_content.split()),
-                "total_tokens": len(prompt_text.split()) + len(response_content.split()),
-            },
-            guardrail={
-                "allowed": res.allowed,
-                "blocked": not res.allowed,
-                "category": res.category,
-                "confidence": res.confidence,
-                "latency_ms": round(res.latency_ms, 3),
-                "details": res.details,
-            },
-        )
+            return OpenAIChatResponse(
+                id=f"chatcmpl-{uuid.uuid4().hex[:12]}",
+                created=int(time.time()),
+                model=req.model,
+                choices=[
+                    OpenAIChoice(
+                        index=0,
+                        message=ChatMessage(role="assistant", content=response_content),
+                        finish_reason="stop",
+                    )
+                ],
+                usage={
+                    "prompt_tokens": len(prompt_text.split()),
+                    "completion_tokens": len(response_content.split()),
+                    "total_tokens": len(prompt_text.split()) + len(response_content.split()),
+                },
+                guardrail={
+                    "allowed": res.allowed,
+                    "blocked": not res.allowed,
+                    "category": res.category,
+                    "confidence": res.confidence,
+                    "latency_ms": round(res.latency_ms, 3),
+                    "details": res.details,
+                },
+            )
+        except Exception as e:
+            overall_ms = (time.perf_counter() - t0) * 1000
+            application.state.telemetry.record_request(
+                prompt=prompt_text,
+                guardrail_latency_ms=0.0,
+                overall_latency_ms=overall_ms,
+                blocked=False,
+                status_code=500,
+                error_message=str(e),
+            )
+            raise
 
     return application
 

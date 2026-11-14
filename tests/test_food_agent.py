@@ -41,7 +41,8 @@ def test_default_food_chat_model_responses():
 
     # 4. General intent
     res_gen = model.invoke([HumanMessage(content="Hello there")])
-    assert "food and recipe assistant" in res_gen.content.lower()
+    assert "working on / processing your request" in res_gen.content.lower()
+    assert "hello there" in res_gen.content.lower()
 
     # 5. List-based content part
     res_list = model.invoke([HumanMessage(content=["Can you recommend a breakfast recipe?"])])

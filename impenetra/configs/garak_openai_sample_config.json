@@ -1,0 +1,55 @@
+{
+  "system": {
+    "parallel_attempts": 32,
+    "parallel_requests": 32
+  },
+  "run": {
+    "soft_probe_prompt_cap": 10
+  },
+  "rest": {
+    "RestGenerator": {
+      "name": "Impenetra-FastAPI-OpenAI",
+      "uri": "http://127.0.0.1:8000/v1/chat/completions",
+      "method": "post",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "req_template_json_object": {
+        "model": "impenetra-guardrail",
+        "messages": [
+          {
+            "role": "user",
+            "content": "$INPUT"
+          }
+        ]
+      },
+      "response_json": true,
+      "response_json_field": "$.choices[0].message.content"
+    }
+  },
+  "plugins": {
+    "generators": {
+      "rest": {
+        "RestGenerator": {
+          "name": "Impenetra-FastAPI-OpenAI",
+          "uri": "http://127.0.0.1:8000/v1/chat/completions",
+          "method": "post",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "req_template_json_object": {
+            "model": "impenetra-guardrail",
+            "messages": [
+              {
+                "role": "user",
+                "content": "$INPUT"
+              }
+            ]
+          },
+          "response_json": true,
+          "response_json_field": "$.choices[0].message.content"
+        }
+      }
+    }
+  }
+}
