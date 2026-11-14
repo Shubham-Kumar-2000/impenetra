@@ -33,6 +33,7 @@ export LLAMA_GUARD_GRADIO_URL="$GRADIO_URL"
 GENERATIONS="${GARAK_GENERATIONS:-1}"
 PARALLEL_ATTEMPTS="${GARAK_PARALLEL_ATTEMPTS:-32}"
 SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter}}"
+SAMPLE_ONLY="${SAMPLE_ONLY:-false}"
 
 # --- Colours ---
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -143,9 +144,14 @@ python -m impenetra.experiments.metrics reset --url "http://127.0.0.1:$PORT"
 
 python -m impenetra.garak_plugins.setup install &>/dev/null || true
 
+GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_config.json"
+if [[ "${SAMPLE_ONLY,,}" =~ ^(true|1|yes)$ ]]; then
+    GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_sample_config.json"
+fi
+
 python -m garak \
     --target_type rest \
-    --config "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
+    --config "$GARAK_CONFIG" \
     --generator_option_file "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
     --spec "$SPEC" \
     --generations "$GENERATIONS" \

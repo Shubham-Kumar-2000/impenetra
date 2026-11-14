@@ -64,6 +64,7 @@ echo "Running garak probes on $EXPERIMENT..."
 GENERATIONS="${GARAK_GENERATIONS:-1}"
 PARALLEL_ATTEMPTS="${GARAK_PARALLEL_ATTEMPTS:-32}"
 SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter}}"
+SAMPLE_ONLY="${SAMPLE_ONLY:-false}"
 echo "   → Generations: $GENERATIONS | Parallel attempts: $PARALLEL_ATTEMPTS"
 
 # Reset server metrics before Garak
@@ -71,9 +72,14 @@ python -m impenetra.experiments.metrics reset --url "http://127.0.0.1:$PORT"
 
 python -m impenetra.garak_plugins.setup install &>/dev/null || true
 
+GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_config.json"
+if [[ "${SAMPLE_ONLY,,}" =~ ^(true|1|yes)$ ]]; then
+    GARAK_CONFIG="$PROJECT_ROOT/impenetra/configs/garak_openai_sample_config.json"
+fi
+
 python -m garak \
     --target_type rest \
-    --config "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
+    --config "$GARAK_CONFIG" \
     --generator_option_file "$PROJECT_ROOT/impenetra/configs/garak_openai_config.json" \
     --spec "$SPEC" \
     --generations "$GENERATIONS" \
