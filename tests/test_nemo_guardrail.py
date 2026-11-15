@@ -78,6 +78,30 @@ def test_nemo_guardrail_check_allowed(monkeypatch):
     assert res.allowed is True
     assert res.confidence == 1.0
     assert res.details == "Passed NeMo input rails"
+    
+    # Verify input and dialog rails were executed (output rails disabled)
+    call_kwargs = mock_rails.generate.call_args.kwargs
+    assert "options" in call_kwargs
+    assert call_kwargs["options"].rails.input is True
+    assert call_kwargs["options"].rails.dialog is True
+    assert call_kwargs["options"].rails.output is False
+
+
+def test_nemo_guardrail_check_benign_prompt_with_negative_words(monkeypatch):
+    """Verify benign prompt with 'cannot' or 'can't' is allowed when input rails pass."""
+    monkeypatch.setenv("NEMO_MAIN_MODEL_API_BASE", "https://colab-tunnel.trycloudflare.com")
+    guard = NeMoGuardrail()
+
+    prompt = "I cannot eat gluten, what can I substitute for wheat flour?"
+    mock_rails = MagicMock()
+    # When input rails pass, NeMo returns the user's prompt as the content
+    mock_rails.generate.return_value = prompt
+    guard._rails = mock_rails
+
+    res = guard.check(prompt)
+    assert res.allowed is True
+    assert res.confidence == 1.0
+    assert res.details == "Passed NeMo input rails"
 
 
 def test_nemo_guardrail_check_blocked(monkeypatch):

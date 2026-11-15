@@ -25,7 +25,7 @@ prompting_mode: compact
 rails:
   dialog:
     single_call:
-      enabled: true
+      enabled: false
     user_messages:
       embeddings_only: true
       embeddings_only_similarity_threshold: 0.80
@@ -36,6 +36,9 @@ rails:
 
 prompts:
   - task: self_check_input
+    max_tokens: 5
+    stop:
+      - "\n"
     content: |
       Your task is to check if the user message below complies with safety, charter, and security guidelines.
 
