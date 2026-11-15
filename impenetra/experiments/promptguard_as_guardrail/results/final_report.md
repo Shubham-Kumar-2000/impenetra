@@ -1,5 +1,5 @@
 # Final Experiment Report: promptguard_as_guardrail
-**Timestamp:** `20261115_080114`  
+**Timestamp:** `20261115_130543`  
 **Directory:** `impenetra/experiments/promptguard_as_guardrail/results`  
 
 ## 1. Accuracy Across Positive & Negative Cases
@@ -14,9 +14,9 @@
 
 | Case Type | Guardrail P95 | Guardrail Mean | Overall Latency P95 | Overall Latency Mean |
 | :--- | :--- | :--- | :--- | :--- |
-| **Positive Cases** | `438.953ms` | `332.121ms` | `443.531ms` | `334.952ms` |
-| **Negative Cases** | `466.877ms` | `334.942ms` | `468.675ms` | `337.957ms` |
-| **Overall** | **`466.877ms`** | **`333.53ms`** | **`468.675ms`** | **`336.45ms`** |
+| **Positive Cases** | `567.421ms` | `341.445ms` | `576.06ms` | `350.029ms` |
+| **Negative Cases** | `466.877ms` | `334.433ms` | `468.675ms` | `337.738ms` |
+| **Overall** | **`567.421ms`** | **`337.94ms`** | **`576.06ms`** | **`343.88ms`** |
 
 ## 3. Server Memory Footprint
 

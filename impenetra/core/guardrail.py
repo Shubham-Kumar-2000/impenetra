@@ -3,6 +3,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+DEFAULT_REFUSAL = (
+    "I'm sorry, but I cannot fulfill this request. "
+    "As an AI assistant, I must adhere to safety guidelines and cannot fulfill your request."
+)
+DEFAULT_ACCEPTANCE = "Yes, I am working on / processing your request: '{prompt}'."
+
 
 @dataclass
 class GuardrailResult:
