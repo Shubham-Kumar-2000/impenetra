@@ -1,0 +1,35 @@
+{
+  "experiment": "nemo_guardrails",
+  "run_type": "bench",
+  "timestamp": "20261115_133100",
+  "server_url": "http://127.0.0.1:8000",
+  "error_metrics": {
+    "total_calls": 35,
+    "successful_calls": 35,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "errors_by_type": {}
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 148.52,
+    "peak_rss_mb": 202.66,
+    "delta_rss_mb": 54.14,
+    "vms_mb": 477736.98
+  },
+  "guardrail_latency_ms": {
+    "p50": 300.018,
+    "p95": 29409.458,
+    "p99": 107612.617,
+    "mean": 12192.47,
+    "min": 195.742,
+    "max": 147811.228
+  },
+  "overall_latency_ms": {
+    "p50": 300.032,
+    "p95": 29415.289,
+    "p99": 107617.788,
+    "mean": 12193.658,
+    "min": 195.751,
+    "max": 147812.561
+  }
+}
