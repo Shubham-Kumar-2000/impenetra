@@ -1,33 +1,33 @@
-# Experiment: PromptGuard-as-Guardrail (Meta Prompt Guard 86M API Integration)
+# Experiment: PromptGuard-as-Guardrail (Meta Llama Prompt Guard 2 86M API Integration)
 
-This experiment evaluates **Meta Prompt Guard 86M** (`meta-llama/Prompt-Guard-86M`) as an input guardrail for Impenetra. The guardrail delegates prompt classification to an external FastAPI ONNX Runtime CPU service (as configured in [prompt_guard_colab.ipynb](../../../notebooks/prompt_guard_colab.ipynb)).
+This experiment evaluates **Meta Llama Prompt Guard 2 86M** (`meta-llama/Llama-Prompt-Guard-2-86M`) as an input guardrail for Impenetra. The guardrail delegates prompt classification to an external FastAPI batched PyTorch GPU service (as configured in [prompt_guard_colab.ipynb](../../../notebooks/prompt_guard_colab.ipynb)).
 
 ---
 
 ## Architecture Overview
 
 ```
-                      ┌───────────────────────────────────────┐
-                      │    Meta Prompt Guard 86M API          │
-                      │    (ONNX Runtime CPU / Colab)         │
-                      │    POST /predict                      │
-                      │    {"prompt": "<user text>"}          │
-                      └──────────────────┬────────────────────┘
-                                         │
-                   {"benign": f, "injection": f, "jailbreak": f}
-                                         │
-                                         ▼
+                      ┌───────────────────────────────────────────┐
+                      │    Meta Llama Prompt Guard 2 86M API      │
+                      │    (Batched PyTorch GPU / T4 / Colab)     │
+                      │    POST /predict                          │
+                      │    {"prompt": "<user text>"}              │
+                      └─────────────────────┬─────────────────────┘
+                                            │
+                             {"benign": f, "malicious": f}
+                                            │
+                                            ▼
 [User / Garak Query] ──► [PromptGuardGuardrail]
                                │
-                jailbreak >= 0.8 (threshold)?
+                 malicious >= 0.8 (threshold)?
                                │
-            ┌──────────────────┴──────────────────┐
-            ▼                                     ▼
-        [UNSAFE]                               [SAFE]
-   allowed=False                          allowed=True
-   category="jailbreak"                   category=""
-   Refusal Interception                   Forwarded to Assistant /
-                                          Food Agent LLM
+             ┌─────────────────┴─────────────────┐
+             ▼                                   ▼
+         [UNSAFE]                             [SAFE]
+    allowed=False                        allowed=True
+    category="malicious"                 category=""
+    Refusal Interception                 Forwarded to Assistant /
+                                         Food Agent LLM
 ```
 
 ---
@@ -36,19 +36,19 @@ This experiment evaluates **Meta Prompt Guard 86M** (`meta-llama/Prompt-Guard-86
 
 - **Endpoint**: `POST /predict`
 - **Request Body**: `{"prompt": "<raw text>"}`
-- **Response**: `{"benign": float, "injection": float, "jailbreak": float}`
-- **Threshold**: `JAILBREAK_THRESHOLD = 0.8` (defined at top of `guardrail.py`).
+- **Response**: `{"benign": float, "malicious": float}`
+- **Threshold**: `MALICIOUS_THRESHOLD = 0.8` (defined at top of `guardrail.py`).
 - **Decision**:
-  - If `jailbreak >= 0.8`: The request is blocked with `category="jailbreak"`.
-  - If `jailbreak < 0.8`: The request passes through (`allowed=True`).
-  - No injection thresholding is applied; only jailbreak classification determines policy violation.
+  - If `malicious >= 0.8`: The request is blocked with `category="malicious"`.
+  - If `malicious < 0.8`: The request passes through (`allowed=True`).
+  - Covers both prompt injections and jailbreaks in a single unified malicious classification.
 
 ---
 
 ## Quickstart & Reproduction
 
-### 1. Launch Prompt Guard API Server
-Run the Google Colab notebook [notebooks/prompt_guard_colab.ipynb](../../../notebooks/prompt_guard_colab.ipynb) on standard CPU runtime. Note the public Cloudflare tunnel URL (or local port `8000`).
+### 1. Launch Prompt Guard 2 API Server
+Run the Google Colab notebook [notebooks/prompt_guard_colab.ipynb](../../../notebooks/prompt_guard_colab.ipynb) on a T4 GPU runtime. Note the public Cloudflare tunnel URL (or local port `8000`).
 
 ### 2. Run Experiment
 

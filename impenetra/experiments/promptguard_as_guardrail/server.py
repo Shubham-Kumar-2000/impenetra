@@ -2,8 +2,8 @@
 Experiment: PromptGuard-as-Guardrail Server
 ===========================================
 Uses the Impenetra API framework (create_app) with the injectable
-PromptGuardGuardrail component connecting to a Prompt Guard ONNX Runtime API
-exposed by prompt_guard_colab.ipynb (POST /predict).
+PromptGuardGuardrail component connecting to a Meta Llama Prompt Guard 2 86M API
+server exposed by prompt_guard_colab.ipynb (POST /predict).
 """
 
 import os

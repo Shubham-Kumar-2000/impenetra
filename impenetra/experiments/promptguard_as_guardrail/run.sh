@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Experiment: PromptGuard-as-Guardrail (Meta Prompt Guard 86M API Integration)
+# Experiment: PromptGuard-as-Guardrail (Meta Llama Prompt Guard 2 86M API Integration)
 # =============================================================================
 # Starts the FastAPI guardrail server connecting to a Prompt Guard API server
 # (from prompt_guard_colab.ipynb or custom URL), runs garak red-team probes
@@ -49,7 +49,7 @@ trap cleanup EXIT
 
 echo -e "${CYAN}"
 echo "╔══════════════════════════════════════════════╗"
-echo "║ Experiment: Prompt Guard 86M (ONNX Runtime)  ║"
+echo "║ Experiment: Prompt Guard 2 86M (PyTorch GPU) ║"
 echo "╚══════════════════════════════════════════════╝"
 echo -e "${NC}"
 

@@ -1,8 +1,8 @@
 """
-PromptGuard-as-Guardrail: Meta Prompt Guard 86M API Integration.
+PromptGuard-as-Guardrail: Meta Llama Prompt Guard 2 86M API Integration.
 
 Implements BaseGuardrail by evaluating incoming prompts against
-Meta's Prompt-Guard-86M ONNX Runtime API server exposed by
+Meta's Llama-Prompt-Guard-2-86M API server exposed by
 prompt_guard_colab.ipynb (POST /predict).
 """
 
@@ -16,8 +16,8 @@ import requests
 
 from impenetra.core.guardrail import BaseGuardrail, GuardrailResult
 
-# Threshold to classify prompt as jailbreak (defined at top of file per requirement)
-JAILBREAK_THRESHOLD = 0.8
+# Threshold to classify prompt as malicious (defined at top of file per requirement)
+MALICIOUS_THRESHOLD = 0.8
 
 # Default URL expected in environment variable (PROMPT_GUARD_URL)
 DEFAULT_PROMPT_GUARD_URL = os.getenv("PROMPT_GUARD_URL", "http://127.0.0.1:8000")
@@ -41,14 +41,14 @@ class PromptGuardCallError(RuntimeError):
 
 class PromptGuardGuardrail(BaseGuardrail):
     """
-    Input guardrail using Meta's Prompt-Guard-86M via its ONNX Runtime /predict API.
+    Input guardrail using Meta's Llama-Prompt-Guard-2-86M via its /predict API.
     Injectable into Impenetra's create_app(guardrail=...).
     """
 
     def __init__(
         self,
         endpoint_url: str | None = None,
-        threshold: float = JAILBREAK_THRESHOLD,
+        threshold: float = MALICIOUS_THRESHOLD,
         name: str = "promptguard",
         timeout: float = 30.0,
         fail_open_log_path: str | Path | None = None,
@@ -137,7 +137,7 @@ class PromptGuardGuardrail(BaseGuardrail):
     def _call_predict_api(self, text: str) -> dict[str, float]:
         """
         Invokes Prompt Guard POST /predict API with {"prompt": text}.
-        Expected response format: {"benign": float, "injection": float, "jailbreak": float}
+        Expected response format: {"benign": float, "malicious": float}
         """
         try:
             resp = requests.post(
@@ -167,9 +167,9 @@ class PromptGuardGuardrail(BaseGuardrail):
                 status_code=resp.status_code,
             ) from json_err
 
-        if not isinstance(data, dict) or "jailbreak" not in data:
+        if not isinstance(data, dict) or "malicious" not in data:
             raise PromptGuardCallError(
-                f"Missing 'jailbreak' in Prompt Guard response: {data}",
+                f"Missing 'malicious' in Prompt Guard response: {data}",
                 server_response=resp.text,
                 status_code=resp.status_code,
             )
@@ -178,8 +178,8 @@ class PromptGuardGuardrail(BaseGuardrail):
 
     def check(self, text: str) -> GuardrailResult:
         """
-        Check if input text is a jailbreak according to Prompt Guard API.
-        Only evaluates jailbreak confidence against JAILBREAK_THRESHOLD (0.8).
+        Check if input text is malicious according to Prompt Guard API.
+        Evaluates malicious confidence against MALICIOUS_THRESHOLD (0.8).
         """
         start = time.perf_counter()
         try:
@@ -218,20 +218,20 @@ class PromptGuardGuardrail(BaseGuardrail):
             )
 
         elapsed = (time.perf_counter() - start) * 1000
-        jailbreak_score = float(scores.get("jailbreak", 0.0))
-        benign_score = float(scores.get("benign", 1.0 - jailbreak_score))
+        malicious_score = float(scores.get("malicious", 0.0))
+        benign_score = float(scores.get("benign", 1.0 - malicious_score))
 
-        is_jailbreak = jailbreak_score >= self._threshold
+        is_malicious = malicious_score >= self._threshold
 
-        if is_jailbreak:
-            category = "jailbreak"
+        if is_malicious:
+            category = "malicious"
             desc = (
-                f"Prompt Guard verdict: jailbreak "
-                f"(score: {jailbreak_score:.4f} >= threshold: {self._threshold:.2f})"
+                f"Prompt Guard 2 verdict: malicious "
+                f"(score: {malicious_score:.4f} >= threshold: {self._threshold:.2f})"
             )
             return GuardrailResult(
                 allowed=False,
-                confidence=jailbreak_score,
+                confidence=malicious_score,
                 category=category,
                 details=desc,
                 latency_ms=elapsed,
@@ -239,8 +239,8 @@ class PromptGuardGuardrail(BaseGuardrail):
         else:
             category = ""
             desc = (
-                f"Prompt Guard verdict: safe "
-                f"(jailbreak: {jailbreak_score:.4f} < threshold: {self._threshold:.2f})"
+                f"Prompt Guard 2 verdict: safe "
+                f"(malicious: {malicious_score:.4f} < threshold: {self._threshold:.2f})"
             )
             return GuardrailResult(
                 allowed=True,

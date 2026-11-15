@@ -51,7 +51,7 @@ bash "$SCRIPT_DIR/system_prompt_without_guardrail/run.sh" "$@"
 # ---------------------------------------------------------------------------
 # 4. Run Experiment 4: Prompt Guard (if PROMPT_GUARD_URL is set)
 # ---------------------------------------------------------------------------
-header "Experiment 4: Prompt Guard 86M                 "
+header "Experiment 4: Prompt Guard 2 86M               "
 bash "$SCRIPT_DIR/promptguard_as_guardrail/run.sh" "$@"
 
 # ---------------------------------------------------------------------------
