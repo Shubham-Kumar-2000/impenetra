@@ -1,10 +1,11 @@
 """Unit tests for NeMoGuardrail and NEMO_MAIN_MODEL_API_BASE resolution."""
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 
-from impenetra.api.app import ChatMessage, DEFAULT_REFUSAL
+from impenetra.api.app import DEFAULT_REFUSAL, ChatMessage
 from impenetra.experiments.nemo_guardrails.guardrail import (
     NeMoGuardrail,
     resolve_main_model_api_base,
@@ -14,14 +15,16 @@ from impenetra.experiments.nemo_guardrails.guardrail import (
 def test_resolve_main_model_api_base_missing(monkeypatch):
     """Verify ValueError is raised when NEMO_MAIN_MODEL_API_BASE is unset."""
     monkeypatch.delenv("NEMO_MAIN_MODEL_API_BASE", raising=False)
-    with pytest.raises(ValueError, match="NEMO_MAIN_MODEL_API_BASE environment variable is required"):
+    err_msg = "NEMO_MAIN_MODEL_API_BASE environment variable is required"
+    with pytest.raises(ValueError, match=err_msg):
         resolve_main_model_api_base()
 
 
 def test_resolve_main_model_api_base_empty(monkeypatch):
     """Verify ValueError is raised when NEMO_MAIN_MODEL_API_BASE is whitespace or empty."""
     monkeypatch.setenv("NEMO_MAIN_MODEL_API_BASE", "   ")
-    with pytest.raises(ValueError, match="NEMO_MAIN_MODEL_API_BASE environment variable is required"):
+    err_msg = "NEMO_MAIN_MODEL_API_BASE environment variable is required"
+    with pytest.raises(ValueError, match=err_msg):
         resolve_main_model_api_base()
 
 
@@ -78,7 +81,7 @@ def test_nemo_guardrail_check_allowed(monkeypatch):
     assert res.allowed is True
     assert res.confidence == 1.0
     assert res.details == "Passed NeMo input rails"
-    
+
     # Verify input and dialog rails were executed (output rails disabled)
     call_kwargs = mock_rails.generate.call_args.kwargs
     assert "options" in call_kwargs

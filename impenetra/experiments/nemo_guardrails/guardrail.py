@@ -79,7 +79,8 @@ class NeMoGuardrail(BaseGuardrail):
         try:
             from nemoguardrails.rails.llm.options import GenerationOptions
 
-            # Evaluate input and dialog rails (with single_call: false to keep intent classification fast)
+            # Evaluate input and dialog rails
+            # (with single_call: false to keep intent classification fast)
             options = GenerationOptions(rails=["input", "dialog"], log={"activated_rails": True})
             response = self._rails.generate(
                 messages=[{"role": "user", "content": text}],
@@ -95,7 +96,11 @@ class NeMoGuardrail(BaseGuardrail):
                 content = response.get("content", str(response))
             elif isinstance(response, list) and response:
                 first = response[0]
-                content = first.get("content", str(first)) if isinstance(first, dict) else str(first)
+                content = (
+                    first.get("content", str(first))
+                    if isinstance(first, dict)
+                    else str(first)
+                )
             else:
                 content = str(response)
 
@@ -103,7 +108,12 @@ class NeMoGuardrail(BaseGuardrail):
 
             # 1. Check if an input rail triggered a stop decision
             is_blocked = False
-            if hasattr(response, "log") and response.log and getattr(response.log, "activated_rails", None):
+            has_activated = (
+                hasattr(response, "log")
+                and response.log
+                and getattr(response.log, "activated_rails", None)
+            )
+            if has_activated:
                 for rail in response.log.activated_rails:
                     if getattr(rail, "stop", False) or "stop" in getattr(rail, "decisions", []):
                         is_blocked = True

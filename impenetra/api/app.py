@@ -16,7 +16,13 @@ import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from impenetra.core.guardrail import BaseGuardrail, GuardrailResult, RuleBasedGuardrail
+from impenetra.core.guardrail import (
+    DEFAULT_ACCEPTANCE,
+    DEFAULT_REFUSAL,
+    BaseGuardrail,
+    GuardrailResult,
+    RuleBasedGuardrail,
+)
 from impenetra.food_agent import FOOD_AGENT_SYSTEM_PROMPT, get_default_agent
 from impenetra.profiling.telemetry import TelemetryCollector
 
@@ -184,12 +190,6 @@ def create_app(
         active_llm_caller = None
 
     application.state.llm_caller = active_llm_caller
-
-    DEFAULT_REFUSAL = (
-        "I'm sorry, but I cannot fulfill this request. "
-        "As an AI assistant, I must adhere to safety guidelines and cannot fulfill your request."
-    )
-    DEFAULT_ACCEPTANCE = "Yes, I am working on / processing your request: '{prompt}'."
 
     @application.get("/health")
     async def health_check():

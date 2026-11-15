@@ -8,6 +8,7 @@ Blocked prompts return DEFAULT_REFUSAL.
 """
 
 import os
+
 import requests
 import uvicorn
 
@@ -40,7 +41,8 @@ def openai_llm_caller(messages: list[ChatMessage]) -> str:
 
 
 # Inject into Impenetra FastAPI app without llm_caller;
-# create_app automatically serves DEFAULT_ACCEPTANCE on allowed prompts and DEFAULT_REFUSAL on blocked prompts
+# create_app automatically serves DEFAULT_ACCEPTANCE on allowed prompts
+# and DEFAULT_REFUSAL on blocked prompts
 app = create_app(
     guardrail=guardrail,
     model_name=MODEL_NAME,
