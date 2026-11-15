@@ -137,36 +137,46 @@ def test_compile_experiment_results_end_to_end(tmp_path: Path):
     bench_file = results_dir / "20261114_bench.json"
     bench_data = {
         "experiment": "mock_experiment",
-        "accuracy": {
-            "positive_cases_total": 5,
-            "positive_cases_allowed": 5,
-            "negative_cases_total": 10,
-            "negative_cases_blocked": 10,
+        "summary": {
+            "positive_cases": {"total": 5, "allowed": 5, "blocked": 0},
+            "negative_cases": {"total": 10, "blocked": 10, "allowed": 0},
         },
-        "latency": {
-            "guard_pos_p95_ms": 1.2,
-            "guard_neg_p95_ms": 2.5,
-            "guard_p95_ms": 2.5,
-            "total_pos_p95_ms": 40.0,
-            "total_neg_p95_ms": 45.0,
-        },
-        "memory": {
-            "idle_rss_mb": 100.0,
-            "positive_rss_mb": 110.0,
-            "loaded_rss_mb": 125.0,
-            "loaded_vms_mb": 300.0,
-        },
+        "attempts": [
+            {"type": "positive", "guard_ms": 1.2, "total_ms": 40.0}
+            for _ in range(5)
+        ]
+        + [
+            {"type": "negative", "guard_ms": 2.5, "total_ms": 45.0}
+            for _ in range(10)
+        ],
     }
     with open(bench_file, "w") as f:
         json.dump(bench_data, f)
 
-    # 3. Create dummy run report
-    run_report = results_dir / "20261114_run_report.json"
-    with open(run_report, "w") as f:
+    # 3. Create dummy run reports
+    bench_report = results_dir / "20261114_bench_report.json"
+    with open(bench_report, "w") as f:
         json.dump(
             {
                 "experiment": "mock_experiment",
-                "error_metrics": {"total_calls": 17, "failed_calls": 0, "failure_rate": 0.0},
+                "run_type": "bench",
+                "guardrail_latency_ms": {"p95": 1.2, "mean": 1.0},
+                "overall_latency_ms": {"p95": 40.0, "mean": 35.0},
+                "error_metrics": {"total_calls": 5, "failed_calls": 0, "failure_rate": 0.0},
+                "memory_footprint": {"idle_rss_mb": 100.0, "peak_rss_mb": 110.0},
+            },
+            f,
+        )
+
+    garak_report = results_dir / "20261114_garak_report.json"
+    with open(garak_report, "w") as f:
+        json.dump(
+            {
+                "experiment": "mock_experiment",
+                "run_type": "garak",
+                "guardrail_latency_ms": {"p95": 2.5, "mean": 2.0},
+                "overall_latency_ms": {"p95": 45.0, "mean": 40.0},
+                "error_metrics": {"total_calls": 12, "failed_calls": 0, "failure_rate": 0.0},
                 "memory_footprint": {"idle_rss_mb": 100.0, "peak_rss_mb": 125.0},
             },
             f,
@@ -191,11 +201,11 @@ def test_compile_experiment_results_end_to_end(tmp_path: Path):
     assert report["guardrail_latency"]["negative_cases_p95_ms"] == 2.5
     assert report["memory_footprint"]["idle_rss_mb"] == 100.0
     assert report["memory_footprint"]["peak_rss_mb"] == 125.0
-    assert report["source_files"]["latest_run_report"] == "20261114_run_report.json"
+    assert report["source_files"]["latest_run_report"] == "20261114_garak_report.json"
 
     # Re-compile to ensure pre-existing final_report.json is not self-referenced
     second_report = compile_experiment_results(results_dir, experiment_name="mock_experiment")
-    assert second_report["source_files"]["latest_run_report"] == "20261114_run_report.json"
+    assert second_report["source_files"]["latest_run_report"] == "20261114_garak_report.json"
 
 
 def test_positive_latency_never_falls_back_to_adversarial_garak_run(tmp_path: Path):
@@ -245,8 +255,10 @@ def test_positive_latency_never_falls_back_to_adversarial_garak_run(tmp_path: Pa
             f,
         )
 
-    # 3. Simple bench.json with prompt outcomes
+    # 3. Simple bench.json with prompt outcomes and attempts
     bench_json = results_dir / "20261114_100000_bench.json"
+    pos_guard_samples = [1.72] * 10 + [2.2, 2.2]
+    pos_total_samples = [19.0] * 10 + [25.0, 25.0]
     with open(bench_json, "w") as f:
         json.dump(
             {
@@ -255,6 +267,10 @@ def test_positive_latency_never_falls_back_to_adversarial_garak_run(tmp_path: Pa
                     "positive_cases": {"total": 12, "allowed": 12, "blocked": 0},
                     "negative_cases": {"total": 23, "blocked": 20, "allowed": 3},
                 },
+                "attempts": [
+                    {"type": "positive", "guard_ms": g, "total_ms": t}
+                    for g, t in zip(pos_guard_samples, pos_total_samples)
+                ],
             },
             f,
         )

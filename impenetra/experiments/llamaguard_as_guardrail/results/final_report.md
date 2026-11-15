@@ -1,5 +1,5 @@
 # Final Experiment Report: llamaguard_as_guardrail
-**Timestamp:** `20261114_174950`  
+**Timestamp:** `20261115_130543`  
 **Directory:** `impenetra/experiments/llamaguard_as_guardrail/results`  
 
 ## 1. Accuracy Across Positive & Negative Cases
@@ -14,9 +14,9 @@
 
 | Case Type | Guardrail P95 | Guardrail Mean | Overall Latency P95 | Overall Latency Mean |
 | :--- | :--- | :--- | :--- | :--- |
-| **Positive Cases** | `534.686ms` | `402.908ms` | `534.709ms` | `404.562ms` |
-| **Negative Cases** | `561.521ms` | `368.27ms` | `561.541ms` | `370.681ms` |
-| **Overall** | **`561.521ms`** | **`385.59ms`** | **`561.541ms`** | **`387.62ms`** |
+| **Positive Cases** | `390.245ms` | `320.465ms` | `395.116ms` | `327.945ms` |
+| **Negative Cases** | `561.521ms` | `373.417ms` | `561.541ms` | `376.066ms` |
+| **Overall** | **`561.521ms`** | **`346.94ms`** | **`561.541ms`** | **`352.01ms`** |
 
 ## 3. Server Memory Footprint
 

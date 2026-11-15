@@ -15,6 +15,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from impenetra.profiling.telemetry import calculate_percentile
+
 
 def classify_probe_expectation(
     probe_name: str, goal: str = "", tags: list[str] | None = None
@@ -204,11 +206,10 @@ def compile_experiment_results(
     # 4. Synthesize Positive and Negative cases
     # Benchmark prompt counts (positive and negative cases from benchmark.py)
     summary_obj = bench_data.get("summary", {})
-    acc_obj = bench_data.get("accuracy", {})
 
-    pos_summary = summary_obj.get("positive_cases", summary_obj.get("positive", {}))
-    bench_pos_total = pos_summary.get("total", acc_obj.get("positive_cases_total", 0))
-    bench_pos_allowed = pos_summary.get("allowed", acc_obj.get("positive_cases_allowed", 0))
+    pos_summary = summary_obj.get("positive_cases", {})
+    bench_pos_total = pos_summary.get("total", 0)
+    bench_pos_allowed = pos_summary.get("allowed", 0)
 
     garak_pos_total = garak_attempts.get("positive", {}).get("total", 0)
     garak_pos_allowed = garak_attempts.get("positive", {}).get("allowed", 0)
@@ -216,24 +217,12 @@ def compile_experiment_results(
     total_pos = bench_pos_total + garak_pos_total
     allowed_pos = bench_pos_allowed + garak_pos_allowed
     blocked_pos = total_pos - allowed_pos
-    pos_acc = allowed_pos / total_pos if total_pos > 0 else 1.0
+    pos_acc = allowed_pos / total_pos if total_pos > 0 else 0.0
 
     # Negative cases
-    neg_summary = summary_obj.get("negative_cases", summary_obj.get("negative", {}))
-    bench_neg_total = neg_summary.get(
-        "total",
-        acc_obj.get(
-            "negative_cases_total",
-            acc_obj.get("adversarial_total", 0) + acc_obj.get("off_charter_total", 0),
-        ),
-    )
-    bench_neg_blocked = neg_summary.get(
-        "blocked",
-        acc_obj.get(
-            "negative_cases_blocked",
-            acc_obj.get("blocked", 0) + acc_obj.get("off_charter_blocked", 0),
-        ),
-    )
+    neg_summary = summary_obj.get("negative_cases", {})
+    bench_neg_total = neg_summary.get("total", 0)
+    bench_neg_blocked = neg_summary.get("blocked", 0)
 
     garak_neg_total = garak_attempts.get("negative", {}).get("total", 0)
     garak_neg_blocked = garak_attempts.get("negative", {}).get("blocked", 0)
@@ -247,133 +236,141 @@ def compile_experiment_results(
     total_correct = allowed_pos + blocked_neg
     overall_acc = total_correct / total_all if total_all > 0 else 0.0
 
-    # 5. Latency metrics (from server telemetry reports or bench reports)
-    bench_lat = bench_data.get("latency", {})
-
+    # 5. Latency metrics
     # Positive cases (on-charter food queries):
-    # Strictly pull from benchmark reports or explicit bench_lat; NEVER fall back to
-    # Garak adversarial P95!
+    # benchmark.py runs both positive and negative cases, so bench_report telemetry mixes both.
+    # We calculate positive case latency directly from the positive attempts in bench_data.
+    pos_attempts = [
+        a for a in bench_data.get("attempts", []) if a.get("type") == "positive"
+    ]
+    pos_guard_lats = [
+        a["guard_ms"] for a in pos_attempts if a.get("guard_ms") is not None
+    ]
+    pos_total_lats = [
+        a["total_ms"] for a in pos_attempts if a.get("total_ms") is not None
+    ]
+
     bench_glat = bench_report.get("guardrail_latency_ms", {}) if bench_report else {}
     bench_olat = bench_report.get("overall_latency_ms", {}) if bench_report else {}
 
-    if bench_glat.get("positive_p95") is not None:
+    if pos_guard_lats:
+        guard_pos_p95 = calculate_percentile(pos_guard_lats, 95)
+        guard_pos_mean = round(sum(pos_guard_lats) / len(pos_guard_lats), 3)
+    elif bench_glat.get("positive_p95") is not None:
         guard_pos_p95 = bench_glat["positive_p95"]
-    elif bench_glat.get("p95") is not None:
-        guard_pos_p95 = bench_glat["p95"]
-    elif bench_lat.get("guard_pos_p95_ms") is not None:
-        guard_pos_p95 = bench_lat["guard_pos_p95_ms"]
+        guard_pos_mean = bench_glat.get("positive_mean", 0.0)
     else:
         guard_pos_p95 = 0.0
-
-    if bench_glat.get("positive_mean") is not None:
-        guard_pos_mean = bench_glat["positive_mean"]
-    elif bench_glat.get("mean") is not None:
-        guard_pos_mean = bench_glat["mean"]
-    elif bench_lat.get("guard_pos_mean_ms") is not None:
-        guard_pos_mean = bench_lat["guard_pos_mean_ms"]
-    else:
         guard_pos_mean = 0.0
 
+    if pos_total_lats:
+        overall_pos_p95 = calculate_percentile(pos_total_lats, 95)
+        overall_pos_mean = round(sum(pos_total_lats) / len(pos_total_lats), 3)
+    elif bench_olat.get("positive_p95") is not None:
+        overall_pos_p95 = bench_olat["positive_p95"]
+        overall_pos_mean = bench_olat.get("positive_mean", 0.0)
+    else:
+        overall_pos_p95 = 0.0
+        overall_pos_mean = 0.0
+
     # Negative cases (adversarial / jailbreak attacks):
+    # Sourced from both garak telemetry report (red-team probes) and benchmark negative attempts.
+    neg_attempts = [
+        a for a in bench_data.get("attempts", []) if a.get("type") == "negative"
+    ]
+    neg_guard_lats = [
+        a["guard_ms"] for a in neg_attempts if a.get("guard_ms") is not None
+    ]
+    neg_total_lats = [
+        a["total_ms"] for a in neg_attempts if a.get("total_ms") is not None
+    ]
+
+    bench_neg_p95 = calculate_percentile(neg_guard_lats, 95) if neg_guard_lats else 0.0
+    bench_neg_tot_p95 = calculate_percentile(neg_total_lats, 95) if neg_total_lats else 0.0
+
     garak_glat = garak_report.get("guardrail_latency_ms", {}) if garak_report else {}
     garak_olat = garak_report.get("overall_latency_ms", {}) if garak_report else {}
+    garak_p95 = garak_glat.get("p95", 0.0)
+    garak_tot_p95 = garak_olat.get("p95", 0.0)
 
-    if garak_glat.get("p95") is not None:
-        guard_neg_p95 = garak_glat["p95"]
-    elif bench_glat.get("negative_p95") is not None:
-        guard_neg_p95 = bench_glat["negative_p95"]
-    elif bench_lat.get("guard_neg_p95_ms") is not None:
-        guard_neg_p95 = bench_lat["guard_neg_p95_ms"]
-    else:
-        guard_neg_p95 = 0.0
+    guard_neg_p95_candidates = [p for p in [bench_neg_p95, garak_p95] if p > 0.0]
+    guard_neg_p95 = max(guard_neg_p95_candidates) if guard_neg_p95_candidates else 0.0
 
-    if garak_glat.get("mean") is not None:
-        guard_neg_mean = garak_glat["mean"]
-    elif bench_glat.get("negative_mean") is not None:
-        guard_neg_mean = bench_glat["negative_mean"]
-    elif bench_lat.get("guard_neg_mean_ms") is not None:
-        guard_neg_mean = bench_lat["guard_neg_mean_ms"]
+    overall_neg_p95_candidates = [p for p in [bench_neg_tot_p95, garak_tot_p95] if p > 0.0]
+    overall_neg_p95 = max(overall_neg_p95_candidates) if overall_neg_p95_candidates else 0.0
+
+    # Negative mean: combines benchmark negative attempts and garak attempts
+    garak_calls = (
+        garak_report.get("error_metrics", {}).get("total_calls", 0)
+        if garak_report
+        else garak_attempts.get("negative", {}).get("total", 0)
+    )
+
+    bench_neg_mean = (
+        round(sum(neg_guard_lats) / len(neg_guard_lats), 3) if neg_guard_lats else None
+    )
+    garak_guard_mean = garak_glat.get("mean")
+
+    if bench_neg_mean is not None and garak_guard_mean is not None:
+        if garak_calls > 0:
+            guard_neg_mean = round(
+                (sum(neg_guard_lats) + garak_guard_mean * garak_calls)
+                / (len(neg_guard_lats) + garak_calls),
+                3,
+            )
+        else:
+            guard_neg_mean = round((bench_neg_mean + garak_guard_mean) / 2, 3)
+    elif bench_neg_mean is not None:
+        guard_neg_mean = bench_neg_mean
+    elif garak_guard_mean is not None:
+        guard_neg_mean = garak_guard_mean
     else:
         guard_neg_mean = 0.0
 
-    # Overall guardrail P95 across all runs
-    all_guard_p95s = [
-        r.get("guardrail_latency_ms", {}).get("p95")
-        for r in run_reports
-        if r.get("guardrail_latency_ms", {}).get("p95") is not None
-    ]
-    if bench_lat.get("guard_p95_ms"):
-        all_guard_p95s.append(bench_lat["guard_p95_ms"])
-    guard_overall_p95 = max(all_guard_p95s) if all_guard_p95s else max(guard_pos_p95, guard_neg_p95)
+    # Negative overall latency mean
+    bench_neg_tot_mean = (
+        round(sum(neg_total_lats) / len(neg_total_lats), 3) if neg_total_lats else None
+    )
+    garak_overall_mean = garak_olat.get("mean")
 
-    # Guardrail mean latency: average the reported means (NOT the P50 medians!)
-    guard_means = [
-        r.get("guardrail_latency_ms", {}).get("mean")
-        for r in run_reports
-        if r.get("guardrail_latency_ms", {}).get("mean") is not None
-    ]
-    if not guard_means and bench_lat.get("guard_mean_ms"):
-        guard_means.append(bench_lat["guard_mean_ms"])
-    guard_mean_ms = round(sum(guard_means) / len(guard_means), 2) if guard_means else 0.0
-
-    # Overall latency footprint (round-trip request latencies)
-    if bench_olat.get("positive_p95") is not None:
-        overall_pos_p95 = bench_olat["positive_p95"]
-    elif bench_olat.get("p95") is not None:
-        overall_pos_p95 = bench_olat["p95"]
-    elif bench_lat.get("total_pos_p95_ms") is not None:
-        overall_pos_p95 = bench_lat["total_pos_p95_ms"]
-    else:
-        overall_pos_p95 = 0.0
-
-    if bench_olat.get("positive_mean") is not None:
-        overall_pos_mean = bench_olat["positive_mean"]
-    elif bench_olat.get("mean") is not None:
-        overall_pos_mean = bench_olat["mean"]
-    elif bench_lat.get("total_pos_mean_ms") is not None:
-        overall_pos_mean = bench_lat["total_pos_mean_ms"]
-    else:
-        overall_pos_mean = 0.0
-
-    if garak_olat.get("p95") is not None:
-        overall_neg_p95 = garak_olat["p95"]
-    elif bench_olat.get("negative_p95") is not None:
-        overall_neg_p95 = bench_olat["negative_p95"]
-    elif bench_lat.get("total_neg_p95_ms") is not None:
-        overall_neg_p95 = bench_lat["total_neg_p95_ms"]
-    else:
-        overall_neg_p95 = 0.0
-
-    if garak_olat.get("mean") is not None:
-        overall_neg_mean = garak_olat["mean"]
-    elif bench_olat.get("negative_mean") is not None:
-        overall_neg_mean = bench_olat["negative_mean"]
-    elif bench_lat.get("total_neg_mean_ms") is not None:
-        overall_neg_mean = bench_lat["total_neg_mean_ms"]
+    if bench_neg_tot_mean is not None and garak_overall_mean is not None:
+        if garak_calls > 0:
+            overall_neg_mean = round(
+                (sum(neg_total_lats) + garak_overall_mean * garak_calls)
+                / (len(neg_total_lats) + garak_calls),
+                3,
+            )
+        else:
+            overall_neg_mean = round((bench_neg_tot_mean + garak_overall_mean) / 2, 3)
+    elif bench_neg_tot_mean is not None:
+        overall_neg_mean = bench_neg_tot_mean
+    elif garak_overall_mean is not None:
+        overall_neg_mean = garak_overall_mean
     else:
         overall_neg_mean = 0.0
 
-    all_overall_p95s = [
-        r.get("overall_latency_ms", {}).get("p95")
-        for r in run_reports
-        if r.get("overall_latency_ms", {}).get("p95") is not None
-    ]
-    if bench_lat.get("total_p95_ms"):
-        all_overall_p95s.append(bench_lat["total_p95_ms"])
-    overall_all_p95 = (
-        max(all_overall_p95s) if all_overall_p95s else max(overall_pos_p95, overall_neg_p95)
-    )
+    # Overall guardrail P95 across positive and negative cases
+    guard_p95_pool = [p for p in [guard_pos_p95, guard_neg_p95] if p > 0.0]
+    for r in run_reports:
+        p = r.get("guardrail_latency_ms", {}).get("p95")
+        if p is not None:
+            guard_p95_pool.append(p)
+    guard_overall_p95 = max(guard_p95_pool) if guard_p95_pool else 0.0
 
-    all_overall_means = [
-        r.get("overall_latency_ms", {}).get("mean")
-        for r in run_reports
-        if r.get("overall_latency_ms", {}).get("mean") is not None
-    ]
-    if not all_overall_means and bench_lat.get("total_mean_ms"):
-        all_overall_means.append(bench_lat["total_mean_ms"])
-    overall_all_mean = (
-        round(sum(all_overall_means) / len(all_overall_means), 2) if all_overall_means else 0.0
-    )
+    # Guardrail mean latency: average the positive and negative means
+    guard_means = [m for m in [guard_pos_mean, guard_neg_mean] if m > 0.0]
+    guard_mean_ms = round(sum(guard_means) / len(guard_means), 2) if guard_means else 0.0
+
+    # Overall latency footprint (round-trip request latencies)
+    overall_p95_pool = [p for p in [overall_pos_p95, overall_neg_p95] if p > 0.0]
+    for r in run_reports:
+        p = r.get("overall_latency_ms", {}).get("p95")
+        if p is not None:
+            overall_p95_pool.append(p)
+    overall_all_p95 = max(overall_p95_pool) if overall_p95_pool else 0.0
+
+    overall_means = [m for m in [overall_pos_mean, overall_neg_mean] if m > 0.0]
+    overall_all_mean = round(sum(overall_means) / len(overall_means), 2) if overall_means else 0.0
 
     # 6. Memory metrics (from server telemetry reports)
     idle_rss_candidates = []
@@ -389,15 +386,9 @@ def compile_experiment_results(
         if mem.get("vms_mb"):
             vms_candidates.append(mem["vms_mb"])
 
-    bench_mem = bench_data.get("memory", {})
-    if bench_mem.get("idle_rss_mb"):
-        idle_rss_candidates.append(bench_mem["idle_rss_mb"])
-    if bench_mem.get("loaded_rss_mb"):
-        peak_rss_candidates.append(bench_mem["loaded_rss_mb"])
-
     idle_rss = min(idle_rss_candidates) if idle_rss_candidates else 0.0
-    peak_rss = max(peak_rss_candidates) if peak_rss_candidates else idle_rss
-    vms = max(vms_candidates) if vms_candidates else bench_mem.get("loaded_vms_mb", 0.0)
+    peak_rss = max(peak_rss_candidates) if peak_rss_candidates else 0.0
+    vms = max(vms_candidates) if vms_candidates else 0.0
     delta_rss = round(max(0.0, peak_rss - idle_rss), 2)
 
     # 7. Error metrics (from server telemetry reports)
@@ -411,9 +402,6 @@ def compile_experiment_results(
         failed_calls += err.get("failed_calls", 0)
         for k, v in err.get("errors_by_type", {}).items():
             errors_by_type[k] = errors_by_type.get(k, 0) + v
-
-    if total_calls == 0:
-        total_calls = total_all
 
     failure_rate = round(failed_calls / total_calls, 4) if total_calls > 0 else 0.0
     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -468,43 +456,55 @@ def compile_experiment_results(
             "vms_mb": vms,
             "positive_cases": {
                 "peak_rss_mb": (
-                    bench_report.get("memory_footprint", {}).get("peak_rss_mb")
-                    if bench_report and bench_report.get("memory_footprint", {}).get("peak_rss_mb")
-                    else bench_mem.get("positive_rss_mb", idle_rss)
+                    bench_report.get("memory_footprint", {}).get("peak_rss_mb", 0.0)
+                    if bench_report
+                    else 0.0
                 ),
                 "delta_rss_mb": round(
                     max(
                         0.0,
                         (
-                            bench_report.get("memory_footprint", {}).get("peak_rss_mb")
+                            bench_report.get("memory_footprint", {}).get("peak_rss_mb", idle_rss)
                             if bench_report
-                            and bench_report.get("memory_footprint", {}).get("peak_rss_mb")
-                            else bench_mem.get("positive_rss_mb", idle_rss)
+                            else idle_rss
                         )
                         - idle_rss,
                     ),
                     2,
-                ),
+                )
+                if bench_report
+                else 0.0,
             },
             "negative_cases": {
                 "peak_rss_mb": (
-                    garak_report.get("memory_footprint", {}).get("peak_rss_mb")
-                    if garak_report and garak_report.get("memory_footprint", {}).get("peak_rss_mb")
-                    else peak_rss
+                    garak_report.get("memory_footprint", {}).get("peak_rss_mb", 0.0)
+                    if garak_report
+                    else (
+                        bench_report.get("memory_footprint", {}).get("peak_rss_mb", 0.0)
+                        if bench_report and neg_attempts
+                        else 0.0
+                    )
                 ),
                 "delta_rss_mb": round(
                     max(
                         0.0,
                         (
-                            garak_report.get("memory_footprint", {}).get("peak_rss_mb")
+                            garak_report.get("memory_footprint", {}).get("peak_rss_mb", idle_rss)
                             if garak_report
-                            and garak_report.get("memory_footprint", {}).get("peak_rss_mb")
-                            else peak_rss
+                            else (
+                                bench_report.get("memory_footprint", {}).get(
+                                    "peak_rss_mb", idle_rss
+                                )
+                                if bench_report and neg_attempts
+                                else idle_rss
+                            )
                         )
                         - idle_rss,
                     ),
                     2,
-                ),
+                )
+                if (garak_report or (bench_report and neg_attempts))
+                else 0.0,
             },
         },
         "error_metrics": {
