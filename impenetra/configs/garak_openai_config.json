@@ -5,6 +5,7 @@
   },
   "rest": {
     "RestGenerator": {
+      "request_timeout": 180,
       "name": "Impenetra-FastAPI-OpenAI",
       "uri": "http://127.0.0.1:8000/v1/chat/completions",
       "method": "post",

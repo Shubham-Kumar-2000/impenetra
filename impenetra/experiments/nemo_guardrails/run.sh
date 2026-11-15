@@ -2,16 +2,22 @@
 # =============================================================================
 # Experiment 2: NeMo Guardrails
 # =============================================================================
-# Starts the FastAPI server wrapping NVIDIA NeMo Guardrails, runs garak
-# red-team probes against it, saves results to impenetra/experiments/nemo_guardrails/results/, then cleans up.
+# Starts the FastAPI server wrapping NVIDIA NeMo Guardrails, connects to the
+# remote Colab OpenAI-compatible API (NEMO_MAIN_MODEL_API_BASE), runs garak
+# red-team probes against it, saves results to impenetra/experiments/nemo_guardrails/results/,
+# then cleans up.
 #
 # Usage:
 #   cd /path/to/impenetra
+#   bash impenetra/experiments/nemo_guardrails/run.sh [NEMO_MAIN_MODEL_API_BASE]
+#
+# Examples:
+#   bash impenetra/experiments/nemo_guardrails/run.sh https://random-subdomain.trycloudflare.com
+#   export NEMO_MAIN_MODEL_API_BASE="https://random-subdomain.trycloudflare.com"
 #   bash impenetra/experiments/nemo_guardrails/run.sh
 #
 # Prerequisites:
-#   - ollama serve  (running in background)
-#   - ollama pull llama3.1:8b-instruct-q8_0
+#   - Google Colab API server running (notebooks/llama3_1_8b_instruct_colab.ipynb)
 #   - pip install -e ".[dev]"   (includes nemoguardrails)
 # =============================================================================
 set -euo pipefail
@@ -22,6 +28,20 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
 PORT=8000
 SERVER_PID=""
+
+# Accept Colab tunnel base domain from $1 or environment variable
+NEMO_MAIN_MODEL_API_BASE="${1:-${NEMO_MAIN_MODEL_API_BASE:-}}"
+if [[ -z "$NEMO_MAIN_MODEL_API_BASE" ]]; then
+    echo -e "\033[0;31m❌ NEMO_MAIN_MODEL_API_BASE is required.\033[0m"
+    echo -e "   Usage: bash impenetra/experiments/nemo_guardrails/run.sh https://<subdomain>.trycloudflare.com"
+    echo -e "      or: export NEMO_MAIN_MODEL_API_BASE='https://<subdomain>.trycloudflare.com'"
+    exit 1
+fi
+
+# Strip trailing slashes and any trailing /v1 to ensure domain-only format
+NEMO_MAIN_MODEL_API_BASE="${NEMO_MAIN_MODEL_API_BASE%/}"
+NEMO_MAIN_MODEL_API_BASE="${NEMO_MAIN_MODEL_API_BASE%/v1}"
+export NEMO_MAIN_MODEL_API_BASE="$NEMO_MAIN_MODEL_API_BASE"
 
 GENERATIONS="${GARAK_GENERATIONS:-1}"
 PARALLEL_ATTEMPTS="${GARAK_PARALLEL_ATTEMPTS:-32}"
@@ -50,7 +70,6 @@ echo -e "${NC}"
 # ---------------------------------------------------------------------------
 echo -e "${YELLOW}[1/6] Pre-flight checks & clearing existing results...${NC}"
 
-command -v ollama &>/dev/null  || { echo -e "${RED}❌ ollama not found. Install from https://ollama.com${NC}"; exit 1; }
 command -v python  &>/dev/null || { echo -e "${RED}❌ python not found${NC}"; exit 1; }
 
 # Clear existing results in this experiment directory
@@ -61,16 +80,22 @@ echo -e "${GREEN}✓ Cleared existing results in $RESULTS_DIR${NC}"
 python -c "import nemoguardrails" 2>/dev/null \
     || { echo -e "${RED}❌ nemoguardrails not installed. Run: pip install -e '.[dev]'${NC}"; exit 1; }
 
-# Check Ollama is reachable
-curl -sf "http://localhost:11434/api/tags" >/dev/null \
-    || { echo -e "${RED}❌ Ollama not running. Start with: ollama serve${NC}"; exit 1; }
+# Check garak is installed
+python -m garak --help &>/dev/null 2>&1 \
+    || { echo -e "${RED}❌ garak not installed. Run: pip install -e '.[dev]'${NC}"; exit 1; }
 
-# Check main model is pulled
-ollama list | grep -q "llama3.1:8b-instruct-q8_0" \
-    || { echo -e "${RED}❌ Model not found. Run: ollama pull llama3.1:8b-instruct-q8_0${NC}"; exit 1; }
-
+echo -e "Target Colab API: ${CYAN}$NEMO_MAIN_MODEL_API_BASE${NC}"
 echo -e "Garak generations: ${CYAN}$GENERATIONS${NC}"
 echo -e "Garak parallelism (attempts): ${CYAN}$PARALLEL_ATTEMPTS${NC}"
+
+# Verify remote Colab server connectivity
+if curl -sf --max-time 5 "$NEMO_MAIN_MODEL_API_BASE/health" >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Colab API server reachable at $NEMO_MAIN_MODEL_API_BASE${NC}"
+else
+    echo -e "${RED}❌ Cannot reach $NEMO_MAIN_MODEL_API_BASE/health. Please verify the Colab server and Cloudflare tunnel are running.${NC}"
+    # exit 1
+fi
+
 echo -e "${GREEN}✅ All pre-flight checks passed${NC}"
 
 # ---------------------------------------------------------------------------

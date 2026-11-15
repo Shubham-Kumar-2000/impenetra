@@ -1,10 +1,10 @@
 models:
   - type: main
     engine: openai
-    model: llama3.1:8b-instruct-q8_0
+    model: meta-llama/Meta-Llama-3.1-8B-Instruct
     parameters:
       base_url: "http://localhost:11434/v1"
-      api_key: "ollama"
+      api_key: "XX"
 
 instructions:
   - type: general

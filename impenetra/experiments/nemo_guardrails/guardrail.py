@@ -5,6 +5,7 @@ Implements BaseGuardrail by evaluating incoming prompts through
 NVIDIA NeMo Guardrails (Colang policies + input rails).
 """
 
+import os
 import time
 from pathlib import Path
 
@@ -17,15 +18,36 @@ nest_asyncio.apply()
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "guardrails_config"
 
 
+def resolve_main_model_api_base(explicit_url: str | None = None) -> str:
+    """
+    Resolve the main model OpenAI API base URL.
+    Expects https://<domain> via NEMO_MAIN_MODEL_API_BASE or explicit parameter.
+    Automatically appends '/v1' path by default.
+    """
+    raw = (explicit_url or os.getenv("NEMO_MAIN_MODEL_API_BASE") or "").strip().rstrip("/")
+    if not raw:
+        raise ValueError(
+            "NEMO_MAIN_MODEL_API_BASE environment variable is required (e.g. 'https://xxx.trycloudflare.com')"
+        )
+    if raw.endswith("/v1"):
+        return raw
+    return f"{raw}/v1"
+
+
 class NeMoGuardrail(BaseGuardrail):
     """
     Input guardrail wrapping NVIDIA NeMo Guardrails.
     Injectable into Impenetra's create_app(guardrail=...).
     """
 
-    def __init__(self, config_path: Path | str | None = None):
+    def __init__(
+        self,
+        config_path: Path | str | None = None,
+        main_model_api_base: str | None = None,
+    ):
         self._config_path = Path(config_path or DEFAULT_CONFIG_PATH)
         self._name = "nemo_guardrails"
+        self._main_model_api_base = resolve_main_model_api_base(main_model_api_base)
         self._rails = None
         self._init_rails()
 
@@ -33,11 +55,20 @@ class NeMoGuardrail(BaseGuardrail):
         from nemoguardrails import LLMRails, RailsConfig
 
         config = RailsConfig.from_path(str(self._config_path))
+        # Override the main model base_url with the cloudflared OpenAI endpoint
+        for model in config.models:
+            if getattr(model, "type", None) == "main":
+                model.parameters["base_url"] = self._main_model_api_base
+
         self._rails = LLMRails(config)
 
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def main_model_api_base(self) -> str:
+        return self._main_model_api_base
 
     def check(self, text: str) -> GuardrailResult:
         if self._rails is None:
