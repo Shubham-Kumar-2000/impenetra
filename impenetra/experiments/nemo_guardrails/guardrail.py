@@ -96,6 +96,9 @@ class NeMoGuardrail(BaseGuardrail):
                 "i'm not able",
                 "cannot help with that",
                 "goes against my safety guidelines",
+                "cannot fulfill this request",
+                "cannot fulfill your request",
+                "adhere to safety guidelines",
             ]
             is_blocked = any(m in content.lower() for m in refusal_markers)
 

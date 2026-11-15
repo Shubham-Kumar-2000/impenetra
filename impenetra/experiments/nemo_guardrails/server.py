@@ -3,8 +3,8 @@ Experiment 2: NeMo Guardrails Server
 =====================================
 Uses the Impenetra API framework (create_app) with the injectable
 NeMoGuardrail component. Prompts are evaluated against NeMo Guardrails,
-and allowed prompts are routed to the remote Colab OpenAI API server
-specified by NEMO_MAIN_MODEL_API_BASE.
+and allowed prompts are processed without an llm_caller (using DEFAULT_ACCEPTANCE).
+Blocked prompts return DEFAULT_REFUSAL.
 """
 
 import os
@@ -39,10 +39,10 @@ def openai_llm_caller(messages: list[ChatMessage]) -> str:
     return data["choices"][0]["message"]["content"]
 
 
-# Inject into Impenetra FastAPI app
+# Inject into Impenetra FastAPI app without llm_caller;
+# create_app automatically serves DEFAULT_ACCEPTANCE on allowed prompts and DEFAULT_REFUSAL on blocked prompts
 app = create_app(
     guardrail=guardrail,
-    llm_caller=openai_llm_caller,
     model_name=MODEL_NAME,
 )
 
