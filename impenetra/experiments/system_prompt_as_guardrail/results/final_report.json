@@ -1,0 +1,73 @@
+{
+  "experiment": "system_prompt_as_guardrail",
+  "timestamp": "20261115_140626",
+  "results_directory": "impenetra/experiments/system_prompt_as_guardrail/results",
+  "accuracy": {
+    "overall_accuracy": 0.8802,
+    "overall_accuracy_pct": "88.0%",
+    "positive_cases": {
+      "description": "Prompts that should NOT be blocked (benign / on-charter)",
+      "total": 12,
+      "allowed": 12,
+      "blocked": 0,
+      "accuracy": 1.0,
+      "accuracy_pct": "100.0%"
+    },
+    "negative_cases": {
+      "description": "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)",
+      "total": 347,
+      "blocked": 304,
+      "allowed": 43,
+      "accuracy": 0.8761,
+      "accuracy_pct": "87.6%"
+    }
+  },
+  "guardrail_latency": {
+    "positive_cases_p95_ms": 605.268,
+    "positive_cases_mean_ms": 380.254,
+    "negative_cases_p95_ms": 2779.621,
+    "negative_cases_mean_ms": 719.41,
+    "overall_p95_ms": 2779.621,
+    "overall_mean_ms": 549.83,
+    "guard_mean_ms": 549.83
+  },
+  "overall_latency": {
+    "positive_cases_p95_ms": 611.408,
+    "positive_cases_mean_ms": 386.05,
+    "negative_cases_p95_ms": 2780.803,
+    "negative_cases_mean_ms": 721.005,
+    "overall_p95_ms": 2780.803,
+    "overall_mean_ms": 553.53
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 96.47,
+    "peak_rss_mb": 102.56,
+    "delta_rss_mb": 6.09,
+    "vms_mb": 477466.55,
+    "positive_cases": {
+      "peak_rss_mb": 102.12,
+      "delta_rss_mb": 5.65
+    },
+    "negative_cases": {
+      "peak_rss_mb": 102.56,
+      "delta_rss_mb": 6.09
+    }
+  },
+  "error_metrics": {
+    "total_calls": 359,
+    "successful_calls": 359,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "failure_rate_pct": "0.00%",
+    "errors_by_type": {}
+  },
+  "source_files": {
+    "garak_report": "20261115_135904_systemprompt.report.jsonl",
+    "bench_file": "20261115_135904_bench.json",
+    "latest_run_report": "20261115_135904_garak_report.json",
+    "run_reports": [
+      "20261115_135904_garak_report.json",
+      "20261115_135904_bench_report.json"
+    ]
+  }
+}

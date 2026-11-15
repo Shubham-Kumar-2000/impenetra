@@ -31,7 +31,7 @@ EXPERIMENTS = [
     ("llamaguard_as_guardrail", "LlamaGuard3\n(Ollama classifier)"),
     ("promptguard_as_guardrail", "Prompt Guard 2 86M\n(PyTorch GPU classifier)"),
     ("nemo_guardrails", "NeMo Guardrails\n(Colang + self-check)"),
-    ("system_prompt_without_guardrail", "System Prompt Charter\n(No guardrail — baseline)"),
+    ("system_prompt_as_guardrail", "System Prompt Guardrail\n(LLM-as-a-Judge)"),
 ]
 
 
