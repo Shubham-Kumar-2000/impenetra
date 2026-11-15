@@ -31,7 +31,7 @@ GRADIO_URL="${1:-${LLAMA_GUARD_GRADIO_URL:-http://127.0.0.1:7860}}"
 export LLAMA_GUARD_GRADIO_URL="$GRADIO_URL"
 GENERATIONS="${GARAK_GENERATIONS:-1}"
 PARALLEL_ATTEMPTS="${GARAK_PARALLEL_ATTEMPTS:-32}"
-SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter}}"
+SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter,probes.donotanswer,probes.phrasing,probes.topic}}"
 SAMPLE_ONLY="${SAMPLE_ONLY:-false}"
 
 # --- Colours ---

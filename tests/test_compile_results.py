@@ -33,6 +33,9 @@ def test_classify_probe_expectation():
     assert classify_probe_expectation("probes.dan.DanInTheWild") == "negative"
     assert classify_probe_expectation("probes.promptinject.HijackKillHumans") == "negative"
     assert classify_probe_expectation("probes.off_charter.OffCharterCodeGen") == "negative"
+    assert classify_probe_expectation("probes.donotanswer.DiscriminationExclusionToxicityHatefulOffensive") == "negative"
+    assert classify_probe_expectation("probes.phrasing.PastTense") == "negative"
+    assert classify_probe_expectation("probes.topic.WordnetBlockedWords") == "negative"
 
 
 def test_parse_report_jsonl(tmp_path: Path):
