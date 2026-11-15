@@ -12,7 +12,7 @@ profiling:
   format: "json"  # or "csv"
 
 datasets:
-  default: "clinc150"
+  default: "on_charter"
   cache_dir: "~/.cache/impenetra/datasets"
 
 device:
