@@ -49,7 +49,13 @@ header "Experiment 3: System Prompt Baseline           "
 bash "$SCRIPT_DIR/system_prompt_without_guardrail/run.sh" "$@"
 
 # ---------------------------------------------------------------------------
-# 4. Compare Results Across Experiments
+# 4. Run Experiment 4: Prompt Guard (if PROMPT_GUARD_URL is set)
+# ---------------------------------------------------------------------------
+header "Experiment 4: Prompt Guard 2 86M               "
+bash "$SCRIPT_DIR/promptguard_as_guardrail/run.sh" "$@"
+
+# ---------------------------------------------------------------------------
+# 5. Compare Results Across Experiments
 # ---------------------------------------------------------------------------
 header "Comparing Results Across All Experiments       "
 python -m impenetra.experiments.compare_results --results-dir "$SCRIPT_DIR"
