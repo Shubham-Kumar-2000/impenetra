@@ -77,6 +77,16 @@ DATASET_REGISTRY: dict[str, DatasetInfo] = {
         ),
         num_samples=10,
     ),
+    "intent_manipulation": DatasetInfo(
+        name="intent_manipulation",
+        path=DATA_DIR / "intent_manipulation.csv",
+        task="few_shot_intent_manipulation",
+        description=(
+            "Adversarial prompts targeting few-shot in-context intent classifiers: "
+            "delimiter injection, label hijacking, embedding flooding, and transcript spoofing"
+        ),
+        num_samples=15,
+    ),
 }
 
 # Maintained list/array of all registered benchmark datasets
