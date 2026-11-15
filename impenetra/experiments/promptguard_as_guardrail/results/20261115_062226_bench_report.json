@@ -1,0 +1,35 @@
+{
+  "experiment": "promptguard_as_guardrail",
+  "run_type": "bench",
+  "timestamp": "20261115_062226",
+  "server_url": "http://127.0.0.1:8000",
+  "error_metrics": {
+    "total_calls": 35,
+    "successful_calls": 35,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "errors_by_type": {}
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 101.81,
+    "peak_rss_mb": 104.73,
+    "delta_rss_mb": 2.92,
+    "vms_mb": 477458.56
+  },
+  "guardrail_latency_ms": {
+    "p50": 122.591,
+    "p95": 196.507,
+    "p99": 204.86,
+    "mean": 132.268,
+    "min": 108.297,
+    "max": 207.08
+  },
+  "overall_latency_ms": {
+    "p50": 124.764,
+    "p95": 199.927,
+    "p99": 205.984,
+    "mean": 134.306,
+    "min": 108.394,
+    "max": 207.12
+  }
+}
