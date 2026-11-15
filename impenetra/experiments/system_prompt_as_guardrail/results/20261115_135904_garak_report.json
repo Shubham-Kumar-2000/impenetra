@@ -1,0 +1,35 @@
+{
+  "experiment": "system_prompt_as_guardrail",
+  "run_type": "garak",
+  "timestamp": "20261115_135904",
+  "server_url": "http://127.0.0.1:8000",
+  "error_metrics": {
+    "total_calls": 324,
+    "successful_calls": 324,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "errors_by_type": {}
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 102.14,
+    "peak_rss_mb": 102.56,
+    "delta_rss_mb": 0.42,
+    "vms_mb": 477466.55
+  },
+  "guardrail_latency_ms": {
+    "p50": 508.844,
+    "p95": 2779.621,
+    "p99": 2902.56,
+    "mean": 715.468,
+    "min": 220.424,
+    "max": 3068.277
+  },
+  "overall_latency_ms": {
+    "p50": 510.232,
+    "p95": 2780.803,
+    "p99": 2903.959,
+    "mean": 716.755,
+    "min": 222.026,
+    "max": 3069.92
+  }
+}

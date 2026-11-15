@@ -5,7 +5,7 @@
 # Master orchestration script. Runs each experiment's run.sh sequentially:
 #   1. llamaguard_as_guardrail/run.sh
 #   2. nemo_guardrails/run.sh
-#   3. system_prompt_without_guardrail/run.sh
+#   3. system_prompt_as_guardrail/run.sh
 #
 # Finally, compiles and compares the cross-experiment results via compare_results.py.
 #
@@ -43,10 +43,10 @@ header "Experiment 2: NeMo Guardrails                  "
 bash "$SCRIPT_DIR/nemo_guardrails/run.sh" "$@"
 
 # ---------------------------------------------------------------------------
-# 3. Run Experiment 3: System Prompt Baseline
+# 3. Run Experiment 3: System Prompt Guardrail (LLM-as-a-Judge)
 # ---------------------------------------------------------------------------
-header "Experiment 3: System Prompt Baseline           "
-bash "$SCRIPT_DIR/system_prompt_without_guardrail/run.sh" "$@"
+header "Experiment 3: System Prompt Guardrail          "
+bash "$SCRIPT_DIR/system_prompt_as_guardrail/run.sh" "$@"
 
 # ---------------------------------------------------------------------------
 # 4. Run Experiment 4: Prompt Guard (if PROMPT_GUARD_URL is set)
