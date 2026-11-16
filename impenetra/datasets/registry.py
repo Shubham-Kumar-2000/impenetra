@@ -1,16 +1,22 @@
 """
-Dataset registry for guardrail benchmarking.
+impenetra/datasets/registry.py
+==============================
+Registry of local benchmark prompt datasets for guardrail evaluation.
 
-Supported datasets:
-- CLINC150: 150-class intent classification + OOS detection
-- ToxicChat: Real-world conversational toxicity
-- XSTest: Over-refusal / false-positive testing
-
-Note: AdvBench and related jailbreak attack suites are natively covered
-by Garak's built-in probe library (e.g., garak.probes.suffix, garak.probes.dan).
+Datasets:
+- on_charter: On-charter direct food & culinary inquiries (super_positive)
+- infused_on_charter: On-charter culinary inquiries disguised with adversarial,
+  technical, or distracting framing (positive)
+- adversarial: Straight-away adversarial attacks and jailbreaks (super_negative)
+- off_charter: Off-charter utility theft and non-culinary tasks (negative)
+- infused_off_charter: Off-charter utility theft disguised with culinary or
+  restaurant framing (negative)
 """
 
 from dataclasses import dataclass
+from pathlib import Path
+
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
 
 @dataclass
@@ -18,49 +24,83 @@ class DatasetInfo:
     """Metadata for a registered benchmark dataset."""
 
     name: str
-    hf_path: str  # HuggingFace dataset identifier
-    hf_config: str | None  # Dataset config/subset name
-    task: str  # Classification task type
+    path: Path
+    task: str
     description: str
-    num_classes: int | None = None
-    text_column: str = "text"
-    label_column: str = "label"
+    num_samples: int = 0
 
 
 DATASET_REGISTRY: dict[str, DatasetInfo] = {
-    "clinc150": DatasetInfo(
-        name="CLINC150",
-        hf_path="DeepPavlov/clinc_oos",
-        hf_config="plus",
-        task="intent_classification",
-        description="150 intent classes across 10 domains + out-of-scope detection",
-        num_classes=151,  # 150 intents + OOS
-        text_column="text",
-        label_column="intent",
+    "on_charter": DatasetInfo(
+        name="on_charter",
+        path=DATA_DIR / "on_charter.csv",
+        task="culinary_intent",
+        description="On-charter food inquiries: pure happy path culinary prompts (super_positive)",
+        num_samples=12,
     ),
-    "toxic_chat": DatasetInfo(
-        name="ToxicChat",
-        hf_path="lmsys/toxic-chat",
-        hf_config="toxicchat0124",
-        task="toxicity_detection",
-        description="Real-world user-AI conversation toxicity (binary)",
-        num_classes=2,
-        text_column="user_input",
-        label_column="toxicity",
+    "infused_on_charter": DatasetInfo(
+        name="infused_on_charter",
+        path=DATA_DIR / "infused_on_charter.csv",
+        task="infused_culinary_intent",
+        description=(
+            "On-charter culinary inquiries disguised with adversarial, "
+            "technical, or distracting framing (positive)"
+        ),
+        num_samples=12,
     ),
-    "xstest": DatasetInfo(
-        name="XSTest",
-        hf_path="walledai/XSTest",
-        hf_config=None,
-        task="over_refusal",
-        description="Safe prompts that look dangerous — tests false positive rate",
-        num_classes=2,
-        text_column="prompt",
-        label_column="label",
+    "adversarial": DatasetInfo(
+        name="adversarial",
+        path=DATA_DIR / "adversarial.csv",
+        task="jailbreak_and_injection",
+        description=(
+            "Straight-away adversarial attacks: DAN, injections, and exploits (super_negative)"
+        ),
+        num_samples=15,
+    ),
+    "off_charter": DatasetInfo(
+        name="off_charter",
+        path=DATA_DIR / "off_charter.csv",
+        task="utility_theft",
+        description=(
+            "Off-charter utility theft: code generation, academic math/essays, "
+            "medical, legal (negative)"
+        ),
+        num_samples=8,
+    ),
+    "infused_off_charter": DatasetInfo(
+        name="infused_off_charter",
+        path=DATA_DIR / "infused_off_charter.csv",
+        task="infused_utility_theft",
+        description=(
+            "Off-charter utility theft disguised with culinary, baking, "
+            "or restaurant framing (negative)"
+        ),
+        num_samples=10,
+    ),
+    "intent_manipulation": DatasetInfo(
+        name="intent_manipulation",
+        path=DATA_DIR / "intent_manipulation.csv",
+        task="few_shot_intent_manipulation",
+        description=(
+            "Adversarial prompts targeting few-shot in-context intent classifiers: "
+            "delimiter injection, label hijacking, embedding flooding, and transcript spoofing"
+        ),
+        num_samples=15,
     ),
 }
+
+# Maintained list/array of all registered benchmark datasets
+DATASETS: list[str] = list(DATASET_REGISTRY.keys())
 
 
 def list_datasets() -> list[DatasetInfo]:
     """Return all registered datasets."""
     return list(DATASET_REGISTRY.values())
+
+
+def get_dataset_info(name: str) -> DatasetInfo:
+    """Return DatasetInfo for a specific dataset name or raise ValueError."""
+    if name not in DATASET_REGISTRY:
+        available = ", ".join(DATASET_REGISTRY.keys())
+        raise ValueError(f"Unknown dataset '{name}'. Available: {available}")
+    return DATASET_REGISTRY[name]

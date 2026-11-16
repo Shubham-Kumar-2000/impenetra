@@ -73,6 +73,7 @@ def test_promptguard_check_safe(monkeypatch):
     assert result.confidence == 0.985
     assert "safe" in result.details
     assert result.latency_ms >= 0.0
+    assert result.llm_judge_layer_reached == 0
 
 
 def test_promptguard_check_malicious(monkeypatch):
@@ -93,6 +94,7 @@ def test_promptguard_check_malicious(monkeypatch):
     assert result.confidence == 0.95
     assert "malicious" in result.details
     assert "0.9500 >= threshold: 0.80" in result.details
+    assert result.llm_judge_layer_reached == 0
 
 
 def test_promptguard_boundary_threshold(monkeypatch):

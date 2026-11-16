@@ -19,6 +19,7 @@ class GuardrailResult:
     category: str = ""  # Detected category (e.g., "toxic", "jailbreak")
     details: str = ""  # Human-readable explanation
     latency_ms: float = 0.0  # Time taken for this check
+    llm_judge_layer_reached: int = 0  # 1 if LLM judge layer was reached, 0 otherwise
 
 
 class BaseGuardrail(ABC):

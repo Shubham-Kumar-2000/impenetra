@@ -42,6 +42,9 @@ class ChatPromptResponse(BaseModel):
     category: str = Field(default="", description="Intercepted violation category")
     confidence: float = Field(default=1.0, description="Confidence of guardrail decision")
     latency_ms: float = Field(..., description="Guardrail inspection latency in ms")
+    llm_judge_layer_reached: int = Field(
+        default=0, description="Whether LLM judge layer was reached (1 or 0)"
+    )
 
 
 class ChatMessage(BaseModel):
@@ -86,6 +89,9 @@ class GuardrailCheckResponse(BaseModel):
     category: str
     details: str
     latency_ms: float
+    llm_judge_layer_reached: int = Field(
+        default=0, description="Whether LLM judge layer was reached (1 or 0)"
+    )
 
 
 def create_app(
@@ -222,22 +228,41 @@ def create_app(
     @application.post("/guardrail/check", response_model=GuardrailCheckResponse)
     async def check_guardrail(req: GuardrailCheckRequest):
         t0 = time.perf_counter()
-        res: GuardrailResult = application.state.guardrail.check(req.text)
-        overall_ms = (time.perf_counter() - t0) * 1000
-        application.state.telemetry.record_request(
-            prompt=req.text,
-            guardrail_latency_ms=res.latency_ms,
-            overall_latency_ms=overall_ms,
-            blocked=not res.allowed,
-            status_code=200,
-        )
-        return GuardrailCheckResponse(
-            allowed=res.allowed,
-            confidence=res.confidence,
-            category=res.category,
-            details=res.details,
-            latency_ms=round(res.latency_ms, 3),
-        )
+        res: GuardrailResult | None = None
+        try:
+            res = application.state.guardrail.check(req.text)
+            overall_ms = (time.perf_counter() - t0) * 1000
+            application.state.telemetry.record_request(
+                prompt=req.text,
+                guardrail_latency_ms=res.latency_ms,
+                overall_latency_ms=overall_ms,
+                blocked=not res.allowed,
+                status_code=200,
+                llm_judge_layer_reached=res.llm_judge_layer_reached,
+            )
+            return GuardrailCheckResponse(
+                allowed=res.allowed,
+                confidence=res.confidence,
+                category=res.category,
+                details=res.details,
+                latency_ms=round(res.latency_ms, 3),
+                llm_judge_layer_reached=res.llm_judge_layer_reached,
+            )
+        except Exception as e:
+            overall_ms = (time.perf_counter() - t0) * 1000
+            guard_latency = res.latency_ms if res is not None else 0.0
+            judge_reached = res.llm_judge_layer_reached if res is not None else 0
+            blocked = (not res.allowed) if res is not None else False
+            application.state.telemetry.record_request(
+                prompt=req.text,
+                guardrail_latency_ms=guard_latency,
+                overall_latency_ms=overall_ms,
+                blocked=blocked,
+                status_code=500,
+                error_message=str(e),
+                llm_judge_layer_reached=judge_reached,
+            )
+            raise
 
     @application.post("/chat", response_model=ChatPromptResponse)
     async def chat(req: ChatPromptRequest):
@@ -246,8 +271,9 @@ def create_app(
         Inspects prompt and either blocks it or returns an approved response.
         """
         t0 = time.perf_counter()
+        res: GuardrailResult | None = None
         try:
-            res: GuardrailResult = application.state.guardrail.check(req.prompt)
+            res = application.state.guardrail.check(req.prompt)
 
             if not res.allowed:
                 overall_ms = (time.perf_counter() - t0) * 1000
@@ -257,6 +283,7 @@ def create_app(
                     overall_latency_ms=overall_ms,
                     blocked=True,
                     status_code=200,
+                    llm_judge_layer_reached=res.llm_judge_layer_reached,
                 )
                 return ChatPromptResponse(
                     response=DEFAULT_REFUSAL,
@@ -264,6 +291,7 @@ def create_app(
                     category=res.category,
                     confidence=res.confidence,
                     latency_ms=round(res.latency_ms, 3),
+                    llm_judge_layer_reached=res.llm_judge_layer_reached,
                 )
 
             if application.state.llm_caller:
@@ -280,6 +308,7 @@ def create_app(
                 overall_latency_ms=overall_ms,
                 blocked=False,
                 status_code=200,
+                llm_judge_layer_reached=res.llm_judge_layer_reached,
             )
             return ChatPromptResponse(
                 response=safe_response,
@@ -287,16 +316,21 @@ def create_app(
                 category="",
                 confidence=res.confidence,
                 latency_ms=round(res.latency_ms, 3),
+                llm_judge_layer_reached=res.llm_judge_layer_reached,
             )
         except Exception as e:
             overall_ms = (time.perf_counter() - t0) * 1000
+            guard_latency = res.latency_ms if res is not None else 0.0
+            judge_reached = res.llm_judge_layer_reached if res is not None else 0
+            blocked = (not res.allowed) if res is not None else False
             application.state.telemetry.record_request(
                 prompt=req.prompt,
-                guardrail_latency_ms=0.0,
+                guardrail_latency_ms=guard_latency,
                 overall_latency_ms=overall_ms,
-                blocked=False,
+                blocked=blocked,
                 status_code=500,
                 error_message=str(e),
+                llm_judge_layer_reached=judge_reached,
             )
             raise
 
@@ -316,6 +350,7 @@ def create_app(
                 blocked=False,
                 status_code=400,
                 error_message="Messages list cannot be empty",
+                llm_judge_layer_reached=0,
             )
             raise HTTPException(status_code=400, detail="Messages list cannot be empty")
 
@@ -323,8 +358,9 @@ def create_app(
         user_messages = [m.content for m in req.messages if m.role == "user"]
         prompt_text = user_messages[-1] if user_messages else req.messages[-1].content
 
+        res: GuardrailResult | None = None
         try:
-            res: GuardrailResult = application.state.guardrail.check(prompt_text)
+            res = application.state.guardrail.check(prompt_text)
 
             if not res.allowed:
                 has_refusal_phrase = res.details and (
@@ -344,6 +380,7 @@ def create_app(
                 overall_latency_ms=overall_ms,
                 blocked=not res.allowed,
                 status_code=200,
+                llm_judge_layer_reached=res.llm_judge_layer_reached,
             )
 
             return OpenAIChatResponse(
@@ -369,17 +406,22 @@ def create_app(
                     "confidence": res.confidence,
                     "latency_ms": round(res.latency_ms, 3),
                     "details": res.details,
+                    "llm_judge_layer_reached": res.llm_judge_layer_reached,
                 },
             )
         except Exception as e:
             overall_ms = (time.perf_counter() - t0) * 1000
+            guard_latency = res.latency_ms if res is not None else 0.0
+            judge_reached = res.llm_judge_layer_reached if res is not None else 0
+            blocked = (not res.allowed) if res is not None else False
             application.state.telemetry.record_request(
                 prompt=prompt_text,
-                guardrail_latency_ms=0.0,
+                guardrail_latency_ms=guard_latency,
                 overall_latency_ms=overall_ms,
-                blocked=False,
+                blocked=blocked,
                 status_code=500,
                 error_message=str(e),
+                llm_judge_layer_reached=judge_reached,
             )
             raise
 

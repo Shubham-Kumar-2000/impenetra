@@ -215,6 +215,7 @@ class PromptGuardGuardrail(BaseGuardrail):
                 category="guardrail_error",
                 details=f"Prompt Guard error: {e}",
                 latency_ms=elapsed,
+                llm_judge_layer_reached=0,
             )
 
         elapsed = (time.perf_counter() - start) * 1000
@@ -235,6 +236,7 @@ class PromptGuardGuardrail(BaseGuardrail):
                 category=category,
                 details=desc,
                 latency_ms=elapsed,
+                llm_judge_layer_reached=0,
             )
         else:
             category = ""
@@ -248,6 +250,7 @@ class PromptGuardGuardrail(BaseGuardrail):
                 category=category,
                 details=desc,
                 latency_ms=elapsed,
+                llm_judge_layer_reached=0,
             )
 
     def check_batch(self, texts: list[str]) -> list[GuardrailResult]:

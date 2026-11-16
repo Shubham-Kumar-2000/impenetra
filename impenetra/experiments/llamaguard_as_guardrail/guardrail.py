@@ -289,6 +289,7 @@ class LlamaGuardGuardrail(BaseGuardrail):
                 category="guardrail_error",
                 details=f"LlamaGuard Gradio error: {e}",
                 latency_ms=elapsed,
+                llm_judge_layer_reached=0,
             )
 
         elapsed = (time.perf_counter() - start) * 1000
@@ -306,6 +307,7 @@ class LlamaGuardGuardrail(BaseGuardrail):
             category=category,
             details=desc,
             latency_ms=elapsed,
+            llm_judge_layer_reached=0,
         )
 
     def check_batch(self, texts: list[str]) -> list[GuardrailResult]:

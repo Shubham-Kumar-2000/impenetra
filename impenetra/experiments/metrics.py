@@ -77,6 +77,7 @@ def fetch_server_metrics(
             "delta_rss_mb": 0.0,
             "vms_mb": 0.0,
         },
+        "llm_judge_layer_reached": 0,
         "records": [],
     }
 
@@ -144,6 +145,7 @@ def record_run_metrics(
         "memory_footprint": metrics.get("memory_footprint", {}),
         "guardrail_latency_ms": metrics.get("guardrail_latency_ms", {}),
         "overall_latency_ms": metrics.get("overall_latency_ms", {}),
+        "llm_judge_layer_reached": metrics.get("llm_judge_layer_reached", 0),
     }
 
     if report_jsonl_path:

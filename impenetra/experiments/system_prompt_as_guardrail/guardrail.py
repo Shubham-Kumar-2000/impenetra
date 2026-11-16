@@ -128,11 +128,7 @@ class SystemPromptGuardrail(BaseGuardrail):
     ):
         self._name = name
         self._main_model_api_base = resolve_main_model_api_base(main_model_api_base)
-        self._model_name = (
-            model_name
-            or os.getenv("MAIN_MODEL_NAME")
-            or DEFAULT_MODEL_NAME
-        )
+        self._model_name = model_name or os.getenv("MAIN_MODEL_NAME") or DEFAULT_MODEL_NAME
         self._judge_system_prompt = system_prompt or JUDGE_SYSTEM_PROMPT
         self._timeout = timeout
 
@@ -177,6 +173,7 @@ class SystemPromptGuardrail(BaseGuardrail):
                     category=category or "prompt_violation",
                     details=DEFAULT_REFUSAL,
                     latency_ms=elapsed,
+                    llm_judge_layer_reached=1,
                 )
             else:
                 return GuardrailResult(
@@ -185,6 +182,7 @@ class SystemPromptGuardrail(BaseGuardrail):
                     category="",
                     details=f"Passed system prompt judge: {DEFAULT_ACCEPTANCE.format(prompt=text)}",
                     latency_ms=elapsed,
+                    llm_judge_layer_reached=1,
                 )
 
         except Exception as e:
@@ -195,6 +193,7 @@ class SystemPromptGuardrail(BaseGuardrail):
                 category="judge_error",
                 details=f"Judge error: {e}",
                 latency_ms=elapsed,
+                llm_judge_layer_reached=1,
             )
 
     def check_batch(self, texts: list[str]) -> list[GuardrailResult]:

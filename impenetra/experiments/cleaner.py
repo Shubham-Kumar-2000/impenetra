@@ -79,8 +79,7 @@ if __name__ == "__main__":
         "--dir",
         required=True,
         help=(
-            "Path to results directory "
-            "(e.g. impenetra/experiments/llamaguard_as_guardrail/results)"
+            "Path to results directory (e.g. impenetra/experiments/llamaguard_as_guardrail/results)"
         ),
     )
     args = parser.parse_args()

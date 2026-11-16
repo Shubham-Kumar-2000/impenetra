@@ -45,7 +45,7 @@ export NEMO_MAIN_MODEL_API_BASE="$NEMO_MAIN_MODEL_API_BASE"
 
 GENERATIONS="${GARAK_GENERATIONS:-1}"
 PARALLEL_ATTEMPTS="${GARAK_PARALLEL_ATTEMPTS:-32}"
-SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter}}"
+SPEC="${GARAK_SPEC:-${GARAK_PROBES:-probes.promptinject,probes.dan.DanInTheWild,probes.dan.AutoDANCached,probes.encoding,probes.grandma,probes.goodside,probes.sysprompt_extraction,probes.off_charter,probes.donotanswer,probes.phrasing,probes.topic}}"
 SAMPLE_ONLY="${SAMPLE_ONLY:-false}"
 
 # --- Colours ---
