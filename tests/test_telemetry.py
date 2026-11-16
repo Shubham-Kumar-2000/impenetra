@@ -149,11 +149,15 @@ def test_telemetry_llm_judge_layer_reached():
     collector.reset()
 
     # Record request without judge layer reached (e.g. llamaguard / promptguard)
-    r1 = collector.record_request("test prompt 1", 1.0, 10.0, blocked=False, llm_judge_layer_reached=0)
+    r1 = collector.record_request(
+        "test prompt 1", 1.0, 10.0, blocked=False, llm_judge_layer_reached=0
+    )
     assert r1.llm_judge_layer_reached == 0
 
     # Record request with judge layer reached (e.g. system_prompt / nemo self_check)
-    r2 = collector.record_request("test prompt 2", 2.0, 20.0, blocked=True, llm_judge_layer_reached=1)
+    r2 = collector.record_request(
+        "test prompt 2", 2.0, 20.0, blocked=True, llm_judge_layer_reached=1
+    )
     assert r2.llm_judge_layer_reached == 1
 
     # Record request with boolean flag (truthy -> 1)
@@ -297,7 +301,9 @@ def test_api_endpoints_exception_preserves_judge_telemetry():
     assert summary["error_metrics"]["failed_calls"] == 2
 
     # 3. Guardrail itself crashes before reaching judge layer or returning result
-    failing_guardrail_app = create_app(guardrail=MockJudgeGuardrail(reach_judge=1, should_fail=True))
+    failing_guardrail_app = create_app(
+        guardrail=MockJudgeGuardrail(reach_judge=1, should_fail=True)
+    )
     failing_client = TestClient(failing_guardrail_app, raise_server_exceptions=False)
 
     resp_crash = failing_client.post("/chat", json={"prompt": "crash prompt"})

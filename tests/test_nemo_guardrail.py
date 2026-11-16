@@ -300,7 +300,10 @@ def test_nemo_guardrail_self_check_input_not_triggered(monkeypatch):
 
 
 def test_nemo_guardrail_self_check_input_triggered_via_action_dispatcher(monkeypatch):
-    """Verify tracking works when action dispatcher executes self_check_input across asyncio coroutine."""
+    """
+    Verify tracking works when action dispatcher executes self_check_input
+    across asyncio coroutine.
+    """
     import asyncio
 
     monkeypatch.setenv("NEMO_MAIN_MODEL_API_BASE", "https://colab-tunnel.trycloudflare.com")
@@ -327,7 +330,10 @@ def test_nemo_guardrail_self_check_input_triggered_via_action_dispatcher(monkeyp
 
 
 def test_nemo_guardrail_self_check_input_action_dispatcher_exception_preserves_judge(monkeypatch):
-    """Verify that an exception during self_check_input in child coroutine preserves judge_reached=1."""
+    """
+    Verify that an exception during self_check_input in child coroutine
+    preserves judge_reached=1.
+    """
     import asyncio
 
     monkeypatch.setenv("NEMO_MAIN_MODEL_API_BASE", "https://colab-tunnel.trycloudflare.com")
@@ -359,8 +365,9 @@ async def test_nemo_guardrail_concurrent_requests_no_crosstalk(monkeypatch):
     Verify that concurrent async requests on the same event loop / thread do not
     crosstalk, overwrite, or leak tracker state across tasks.
     """
-    import anyio
     import asyncio
+
+    import anyio
 
     monkeypatch.setenv("NEMO_MAIN_MODEL_API_BASE", "https://colab-tunnel.trycloudflare.com")
     guard = NeMoGuardrail()
@@ -393,8 +400,8 @@ async def test_nemo_guardrail_concurrent_requests_no_crosstalk(monkeypatch):
     mock_rails.generate.side_effect = simulate_generate
     guard._rails = mock_rails
 
-    res_a: list[Any] = []
-    res_b: list[Any] = []
+    res_a = []
+    res_b = []
 
     async def run_task_a():
         # Yield to let tasks interleave

@@ -128,11 +128,7 @@ class SystemPromptGuardrail(BaseGuardrail):
     ):
         self._name = name
         self._main_model_api_base = resolve_main_model_api_base(main_model_api_base)
-        self._model_name = (
-            model_name
-            or os.getenv("MAIN_MODEL_NAME")
-            or DEFAULT_MODEL_NAME
-        )
+        self._model_name = model_name or os.getenv("MAIN_MODEL_NAME") or DEFAULT_MODEL_NAME
         self._judge_system_prompt = system_prompt or JUDGE_SYSTEM_PROMPT
         self._timeout = timeout
 

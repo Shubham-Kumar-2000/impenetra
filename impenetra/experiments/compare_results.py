@@ -85,23 +85,18 @@ def print_table_plain(all_data: list[tuple[str, str, dict | None]]):
             lat["negative_cases_p95_ms"],
             lat["overall_p95_ms"],
         )
-        print(
-            f"  Guard Latency P95 (pos/neg/all):       "
-            f"{pos_p95}ms / {neg_p95}ms / {all_p95}ms"
-        )
+        print(f"  Guard Latency P95 (pos/neg/all):       {pos_p95}ms / {neg_p95}ms / {all_p95}ms")
         pos_mean = lat.get("positive_cases_mean_ms", 0.0)
         neg_mean = lat.get("negative_cases_mean_ms", 0.0)
         all_mean = lat.get("overall_mean_ms", lat.get("guard_mean_ms", 0.0))
         print(
-            f"  Guard Latency Mean (pos/neg/all):      "
-            f"{pos_mean}ms / {neg_mean}ms / {all_mean}ms"
+            f"  Guard Latency Mean (pos/neg/all):      {pos_mean}ms / {neg_mean}ms / {all_mean}ms"
         )
         opos_p95 = olat.get("positive_cases_p95_ms", 0.0)
         oneg_p95 = olat.get("negative_cases_p95_ms", 0.0)
         oall_p95 = olat.get("overall_p95_ms", 0.0)
         print(
-            f"  Overall Latency P95 (pos/neg/all):     "
-            f"{opos_p95}ms / {oneg_p95}ms / {oall_p95}ms"
+            f"  Overall Latency P95 (pos/neg/all):     {opos_p95}ms / {oneg_p95}ms / {oall_p95}ms"
         )
         opos_mean = olat.get("positive_cases_mean_ms", 0.0)
         oneg_mean = olat.get("negative_cases_mean_ms", 0.0)
@@ -121,8 +116,7 @@ def print_table_plain(all_data: list[tuple[str, str, dict | None]]):
             err["failure_rate_pct"],
         )
         print(
-            f"  API Error Metrics (failed/total):      "
-            f"{failed_calls}/{total_calls} ({fail_rate})"
+            f"  API Error Metrics (failed/total):      {failed_calls}/{total_calls} ({fail_rate})"
         )
 
     print("\n" + "=" * 80 + "\n")

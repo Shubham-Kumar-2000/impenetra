@@ -71,11 +71,17 @@ def is_self_check_input_triggered(response: Any, action_triggered: bool = False)
 
     if llm_calls:
         for call in llm_calls:
-            task = getattr(call, "task", None) or (call.get("task") if isinstance(call, dict) else None)
+            task = getattr(call, "task", None) or (
+                call.get("task") if isinstance(call, dict) else None
+            )
             if task == "self_check_input":
                 return True
-            prompt = getattr(call, "prompt", None) or (call.get("prompt") if isinstance(call, dict) else None)
-            if isinstance(prompt, str) and ("task: self_check_input" in prompt or "self_check_input" in prompt):
+            prompt = getattr(call, "prompt", None) or (
+                call.get("prompt") if isinstance(call, dict) else None
+            )
+            if isinstance(prompt, str) and (
+                "task: self_check_input" in prompt or "self_check_input" in prompt
+            ):
                 return True
 
     # 2. Inspect activated_rails and their executed_actions
@@ -85,8 +91,12 @@ def is_self_check_input_triggered(response: Any, action_triggered: bool = False)
 
     if activated:
         for rail in activated:
-            name = getattr(rail, "name", "") or (rail.get("name", "") if isinstance(rail, dict) else "")
-            rail_type = getattr(rail, "type", "") or (rail.get("type", "") if isinstance(rail, dict) else "")
+            name = getattr(rail, "name", "") or (
+                rail.get("name", "") if isinstance(rail, dict) else ""
+            )
+            rail_type = getattr(rail, "type", "") or (
+                rail.get("type", "") if isinstance(rail, dict) else ""
+            )
             if name in ["self check input", "self_check_input"] or rail_type == "self_check_input":
                 return True
 
@@ -196,7 +206,8 @@ class NeMoGuardrail(BaseGuardrail):
         try:
             from nemoguardrails.rails.llm.options import GenerationOptions
 
-            # Evaluate input and dialog rails with activated rails, llm calls, and internal events logging
+            # Evaluate input and dialog rails with activated rails, llm calls,
+            # and internal events logging
             options = GenerationOptions(
                 rails=["input", "dialog"],
                 log={"activated_rails": True, "llm_calls": True, "internal_events": True},
@@ -219,9 +230,7 @@ class NeMoGuardrail(BaseGuardrail):
             elif isinstance(response, list) and response:
                 first = response[0]
                 content = (
-                    first.get("content", str(first))
-                    if isinstance(first, dict)
-                    else str(first)
+                    first.get("content", str(first)) if isinstance(first, dict) else str(first)
                 )
             else:
                 content = str(response)

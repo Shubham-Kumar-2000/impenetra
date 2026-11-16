@@ -283,11 +283,7 @@ def compile_experiment_results(
     else:
         bench_neg_judge = sum(1 for a in neg_attempts if a.get("llm_judge_layer_reached"))
 
-    garak_judge = (
-        int(garak_report.get("llm_judge_layer_reached", 0))
-        if garak_report
-        else 0
-    )
+    garak_judge = int(garak_report.get("llm_judge_layer_reached", 0)) if garak_report else 0
 
     total_neg = bench_neg_total + garak_neg_total
     blocked_neg = bench_neg_blocked + garak_neg_blocked
