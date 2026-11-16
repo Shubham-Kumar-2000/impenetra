@@ -177,6 +177,7 @@ class SystemPromptGuardrail(BaseGuardrail):
                     category=category or "prompt_violation",
                     details=DEFAULT_REFUSAL,
                     latency_ms=elapsed,
+                    llm_judge_layer_reached=1,
                 )
             else:
                 return GuardrailResult(
@@ -185,6 +186,7 @@ class SystemPromptGuardrail(BaseGuardrail):
                     category="",
                     details=f"Passed system prompt judge: {DEFAULT_ACCEPTANCE.format(prompt=text)}",
                     latency_ms=elapsed,
+                    llm_judge_layer_reached=1,
                 )
 
         except Exception as e:
@@ -195,6 +197,7 @@ class SystemPromptGuardrail(BaseGuardrail):
                 category="judge_error",
                 details=f"Judge error: {e}",
                 latency_ms=elapsed,
+                llm_judge_layer_reached=1,
             )
 
     def check_batch(self, texts: list[str]) -> list[GuardrailResult]:

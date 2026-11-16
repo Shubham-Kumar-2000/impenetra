@@ -130,6 +130,7 @@ def test_system_prompt_guardrail_check_benign(monkeypatch):
         assert res.category == ""
         assert "Passed system prompt judge" in res.details
         assert res.latency_ms >= 0.0
+        assert res.llm_judge_layer_reached == 1
 
         assert mock_post.called
         call_url = mock_post.call_args[0][0]
@@ -155,6 +156,7 @@ def test_system_prompt_guardrail_check_blocked(monkeypatch):
         assert res.confidence == 0.98
         assert res.category == "jailbreak"
         assert res.details == DEFAULT_REFUSAL
+        assert res.llm_judge_layer_reached == 1
 
 
 def test_system_prompt_guardrail_check_error_fails_open(monkeypatch):
@@ -169,6 +171,7 @@ def test_system_prompt_guardrail_check_error_fails_open(monkeypatch):
         assert res.confidence == 0.0
         assert res.category == "judge_error"
         assert "Judge error" in res.details
+        assert res.llm_judge_layer_reached == 1
 
 
 def test_system_prompt_guardrail_check_batch(monkeypatch):

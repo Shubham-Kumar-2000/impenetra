@@ -230,6 +230,10 @@ def compile_experiment_results(
     )
     super_pos_blocked = super_pos_total - super_pos_allowed
     super_pos_acc = super_pos_allowed / super_pos_total if super_pos_total > 0 else 1.0
+    if "llm_judge_layer_reached" in super_pos_summary:
+        super_pos_judge = int(super_pos_summary["llm_judge_layer_reached"])
+    else:
+        super_pos_judge = sum(1 for a in super_pos_attempts if a.get("llm_judge_layer_reached"))
 
     # Category 2: positive (all on-charter inquiries: super_positive + positive)
     pos_summary = summary_obj.get("positive_cases", {})
@@ -240,11 +244,16 @@ def compile_experiment_results(
     )
     garak_pos_total = garak_attempts.get("positive", {}).get("total", 0)
     garak_pos_allowed = garak_attempts.get("positive", {}).get("allowed", 0)
+    if "llm_judge_layer_reached" in pos_summary:
+        bench_pos_judge = int(pos_summary["llm_judge_layer_reached"])
+    else:
+        bench_pos_judge = sum(1 for a in pos_attempts if a.get("llm_judge_layer_reached"))
 
     total_pos = bench_pos_total + garak_pos_total
     allowed_pos = bench_pos_allowed + garak_pos_allowed
     blocked_pos = total_pos - allowed_pos
     pos_acc = allowed_pos / total_pos if total_pos > 0 else 1.0
+    total_pos_judge = bench_pos_judge
 
     # Category 4: super_negative (benchmark straight-away attacks; Garak excluded)
     super_neg_summary = summary_obj.get("super_negative_cases", {})
@@ -255,6 +264,10 @@ def compile_experiment_results(
     )
     super_neg_allowed = super_neg_total - super_neg_blocked
     super_neg_acc = super_neg_blocked / super_neg_total if super_neg_total > 0 else 0.0
+    if "llm_judge_layer_reached" in super_neg_summary:
+        super_neg_judge = int(super_neg_summary["llm_judge_layer_reached"])
+    else:
+        super_neg_judge = sum(1 for a in super_neg_attempts if a.get("llm_judge_layer_reached"))
 
     # Category 3: negative (negative + super_negative + garak_probes)
     neg_summary = summary_obj.get("negative_cases", {})
@@ -265,11 +278,22 @@ def compile_experiment_results(
     )
     garak_neg_total = garak_attempts.get("negative", {}).get("total", 0)
     garak_neg_blocked = garak_attempts.get("negative", {}).get("blocked", 0)
+    if "llm_judge_layer_reached" in neg_summary:
+        bench_neg_judge = int(neg_summary["llm_judge_layer_reached"])
+    else:
+        bench_neg_judge = sum(1 for a in neg_attempts if a.get("llm_judge_layer_reached"))
+
+    garak_judge = (
+        int(garak_report.get("llm_judge_layer_reached", 0))
+        if garak_report
+        else 0
+    )
 
     total_neg = bench_neg_total + garak_neg_total
     blocked_neg = bench_neg_blocked + garak_neg_blocked
     allowed_neg = total_neg - blocked_neg
     neg_acc = blocked_neg / total_neg if total_neg > 0 else 0.0
+    total_neg_judge = bench_neg_judge + garak_judge
 
     total_all = total_pos + total_neg
     total_correct = allowed_pos + blocked_neg
@@ -440,6 +464,11 @@ def compile_experiment_results(
             errors_by_type[k] = errors_by_type.get(k, 0) + v
 
     failure_rate = round(failed_calls / total_calls, 4) if total_calls > 0 else 0.0
+
+    # Total judge calls across all categories (benchmark + garak)
+    total_judge_calls = total_pos_judge + total_neg_judge
+    if total_judge_calls == 0 and run_reports:
+        total_judge_calls = sum(rep.get("llm_judge_layer_reached", 0) for rep in run_reports)
     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Bench and Garak peak memory helpers
@@ -477,6 +506,7 @@ def compile_experiment_results(
                 "blocked": super_pos_blocked,
                 "accuracy": round(super_pos_acc, 4),
                 "accuracy_pct": f"{super_pos_acc * 100:.1f}%",
+                "llm_judge_layer_reached": super_pos_judge,
             },
             "positive": {
                 "description": "All on-charter culinary inquiries (super_positive + positive)",
@@ -485,6 +515,7 @@ def compile_experiment_results(
                 "blocked": blocked_pos,
                 "accuracy": round(pos_acc, 4),
                 "accuracy_pct": f"{pos_acc * 100:.1f}%",
+                "llm_judge_layer_reached": total_pos_judge,
             },
             "positive_cases": {
                 "description": "Prompts that should NOT be blocked (benign / on-charter)",
@@ -493,6 +524,7 @@ def compile_experiment_results(
                 "blocked": blocked_pos,
                 "accuracy": round(pos_acc, 4),
                 "accuracy_pct": f"{pos_acc * 100:.1f}%",
+                "llm_judge_layer_reached": total_pos_judge,
             },
             "negative": {
                 "description": "All threats combined (negative + super_negative + garak_probes)",
@@ -501,6 +533,7 @@ def compile_experiment_results(
                 "allowed": allowed_neg,
                 "accuracy": round(neg_acc, 4),
                 "accuracy_pct": f"{neg_acc * 100:.1f}%",
+                "llm_judge_layer_reached": total_neg_judge,
             },
             "negative_cases": {
                 "description": (
@@ -511,6 +544,7 @@ def compile_experiment_results(
                 "allowed": allowed_neg,
                 "accuracy": round(neg_acc, 4),
                 "accuracy_pct": f"{neg_acc * 100:.1f}%",
+                "llm_judge_layer_reached": total_neg_judge,
             },
             "super_negative": {
                 "description": (
@@ -521,6 +555,7 @@ def compile_experiment_results(
                 "allowed": super_neg_allowed,
                 "accuracy": round(super_neg_acc, 4),
                 "accuracy_pct": f"{super_neg_acc * 100:.1f}%",
+                "llm_judge_layer_reached": super_neg_judge,
             },
         },
         "guardrail_latency": {
@@ -586,6 +621,7 @@ def compile_experiment_results(
             "failure_rate_pct": f"{failure_rate * 100:.2f}%",
             "errors_by_type": errors_by_type,
         },
+        "llm_judge_layer_reached": total_judge_calls,
         "source_files": {
             "garak_report": jsonl_files[0].name if jsonl_files else None,
             "bench_file": bench_files[0].name if bench_files else None,
@@ -634,43 +670,49 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         f"# Final Experiment Report: {report['experiment']}",
         f"**Timestamp:** `{report['timestamp']}`  ",
         f"**Directory:** `{report['results_directory']}`  ",
+        f"**Total LLM Judge Calls:** `{report.get('llm_judge_layer_reached', 0)}`  ",
         "",
         "## 1. Accuracy Across 4 Categories",
         "",
         (
             "| Category | Criteria / Scope | Total Evaluated | Correct Decisions | "
-            "Incorrect Decisions | Accuracy |"
+            "Incorrect Decisions | Accuracy | LLM Judge Calls |"
         ),
-        "| :--- | :--- | :--- | :--- | :--- | :--- |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
         (
             f"| **Super-Positive** | Pure culinary happy path | {super_pos.get('total', 0)} | "
             f"{super_pos.get('allowed', 0)} (Allowed) | "
             f"{super_pos.get('blocked', 0)} (False Refusal) | "
-            f"**{super_pos.get('accuracy_pct', 'N/A')}** |"
+            f"**{super_pos.get('accuracy_pct', 'N/A')}** | "
+            f"`{super_pos.get('llm_judge_layer_reached', 0)}` |"
         ),
         (
             f"| **Positive** | All on-charter (super_positive + positive) | "
             f"{pos.get('total', 0)} | {pos.get('allowed', 0)} (Allowed) | "
             f"{pos.get('blocked', 0)} (False Refusal) | "
-            f"**{pos.get('accuracy_pct', 'N/A')}** |"
+            f"**{pos.get('accuracy_pct', 'N/A')}** | "
+            f"`{pos.get('llm_judge_layer_reached', 0)}` |"
         ),
         (
             f"| **Negative** | Threats (negative + super_negative + garak) | "
             f"{neg.get('total', 0)} | {neg.get('blocked', 0)} (Blocked) | "
             f"{neg.get('allowed', 0)} (Bypassed) | "
-            f"**{neg.get('accuracy_pct', 'N/A')}** |"
+            f"**{neg.get('accuracy_pct', 'N/A')}** | "
+            f"`{neg.get('llm_judge_layer_reached', 0)}` |"
         ),
         (
             f"| **Super-Negative** | Straight-away attacks (benchmark only) | "
             f"{super_neg.get('total', 0)} | {super_neg.get('blocked', 0)} (Blocked) | "
             f"{super_neg.get('allowed', 0)} (Bypassed) | "
-            f"**{super_neg.get('accuracy_pct', 'N/A')}** |"
+            f"**{super_neg.get('accuracy_pct', 'N/A')}** | "
+            f"`{super_neg.get('llm_judge_layer_reached', 0)}` |"
         ),
         (
             f"| **Overall** | Combined | {pos.get('total', 0) + neg.get('total', 0)} | "
             f"{pos.get('allowed', 0) + neg.get('blocked', 0)} | "
             f"{pos.get('blocked', 0) + neg.get('allowed', 0)} | "
-            f"**{acc['overall_accuracy_pct']}** |"
+            f"**{acc['overall_accuracy_pct']}** | "
+            f"`{report.get('llm_judge_layer_reached', 0)}` |"
         ),
         "",
         "## 2. Guardrail & Overall Latency Footprint (P95 & Mean)",
@@ -741,6 +783,7 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         f"- **Successful Calls:** `{err['successful_calls']}`",
         f"- **Failed Calls:** `{err['failed_calls']}`",
         f"- **Failure Rate:** `{err['failure_rate_pct']}`",
+        f"- **Total LLM Judge Calls:** `{report.get('llm_judge_layer_reached', 0)}`",
         "",
     ]
     if err.get("errors_by_type"):
@@ -748,6 +791,36 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         for k, v in err["errors_by_type"].items():
             lines.append(f"- `{k}`: {v}")
         lines.append("")
+
+    lines.extend(
+        [
+            "## 5. LLM Judge Layer Breakdown",
+            "",
+            "| Category | LLM Judge Calls | Description |",
+            "| :--- | :--- | :--- |",
+            (
+                f"| **Super-Positive** | `{super_pos.get('llm_judge_layer_reached', 0)}` | "
+                "Pure on-charter culinary path |"
+            ),
+            (
+                f"| **Positive** | `{pos.get('llm_judge_layer_reached', 0)}` | "
+                "All on-charter inquiries |"
+            ),
+            (
+                f"| **Negative** | `{neg.get('llm_judge_layer_reached', 0)}` | "
+                "Threats (benchmark + Garak) |"
+            ),
+            (
+                f"| **Super-Negative** | `{super_neg.get('llm_judge_layer_reached', 0)}` | "
+                "Straight-away attacks (benchmark only) |"
+            ),
+            (
+                f"| **Overall Total** | **`{report.get('llm_judge_layer_reached', 0)}`** | "
+                "Total LLM judge calls across experiment |"
+            ),
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 

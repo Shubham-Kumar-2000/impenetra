@@ -30,6 +30,7 @@ class TelemetryRecord:
     error_message: str | None
     timestamp: str
     memory_rss_mb: float
+    llm_judge_layer_reached: int = 0
 
 
 def calculate_percentile(values: list[float], p: float) -> float:
@@ -147,6 +148,7 @@ class TelemetryCollector:
 
         # Exact counters maintained across all calls
         self.total_calls: int = 0
+        self.total_llm_judge_calls: int = 0
         self.failed_calls: int = 0
         self.errors_by_type: dict[str, int] = {}
 
@@ -190,8 +192,11 @@ class TelemetryCollector:
         blocked: bool,
         status_code: int = 200,
         error_message: str | None = None,
+        llm_judge_layer_reached: int | bool = 0,
     ) -> TelemetryRecord:
-        """Record a single request's timing, error, and memory metrics."""
+        """Record a single request's timing, error, memory, and judge layer metrics."""
+        judge_reached_int = 1 if llm_judge_layer_reached else 0
+
         mem = self._get_current_mem()
         record = TelemetryRecord(
             prompt_snippet=prompt[:80].replace("\n", " ").strip(),
@@ -204,9 +209,13 @@ class TelemetryCollector:
             error_message=error_message,
             timestamp=datetime.datetime.now().astimezone().isoformat(),
             memory_rss_mb=mem["rss_mb"],
+            llm_judge_layer_reached=judge_reached_int,
         )
         with self._lock:
             self.total_calls += 1
+            if judge_reached_int:
+                self.total_llm_judge_calls += 1
+
             if status_code >= 400 or error_message:
                 self.failed_calls += 1
                 if error_message:
@@ -234,6 +243,7 @@ class TelemetryCollector:
         with self._lock:
             self.records.clear()
             self.total_calls = 0
+            self.total_llm_judge_calls = 0
             self.failed_calls = 0
             self.errors_by_type.clear()
             self.guardrail_tracker.reset()
@@ -261,6 +271,7 @@ class TelemetryCollector:
             peak_rss = self.peak_rss_mb
             vms = self.vms_mb
             total_calls = self.total_calls
+            total_judge = self.total_llm_judge_calls
             failed_calls = self.failed_calls
             errors_by_type = dict(self.errors_by_type)
             guard_stats = self.guardrail_tracker.get_stats()
@@ -279,6 +290,7 @@ class TelemetryCollector:
             },
             "guardrail_latency_ms": guard_stats,
             "overall_latency_ms": overall_stats,
+            "llm_judge_layer_reached": total_judge,
             "memory_footprint": {
                 "idle_rss_mb": idle_rss,
                 "peak_rss_mb": peak_rss,

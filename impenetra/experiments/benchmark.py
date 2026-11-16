@@ -83,6 +83,7 @@ def send_prompt(
         resp_data = resp.json() if resp.status_code == 200 else {}
         guard_ms = resp_data.get("guardrail", {}).get("latency_ms", None)
         blocked_flag = resp_data.get("guardrail", {}).get("blocked", False)
+        llm_judge_reached = resp_data.get("guardrail", {}).get("llm_judge_layer_reached", 0)
 
         choices = resp_data.get("choices", [])
         content_out = choices[0].get("message", {}).get("content", "") if choices else resp.text
@@ -96,6 +97,7 @@ def send_prompt(
             "total_ms": total_ms,
             "guard_ms": guard_ms,
             "blocked": is_blocked,
+            "llm_judge_layer_reached": llm_judge_reached,
             "response": content_out[:120],
         }
     except Exception as e:
@@ -106,6 +108,7 @@ def send_prompt(
             "total_ms": total_ms,
             "guard_ms": None,
             "blocked": False,
+            "llm_judge_layer_reached": 0,
             "error": str(e),
             "response": "",
         }
@@ -199,6 +202,7 @@ def run_benchmark(
                 "status_code": res["status_code"],
                 "guard_ms": res.get("guard_ms"),
                 "total_ms": res.get("total_ms"),
+                "llm_judge_layer_reached": res.get("llm_judge_layer_reached", 0),
                 "response_snippet": res.get("response", ""),
                 "correct": is_correct,
             }
@@ -221,6 +225,7 @@ def run_benchmark(
         ds_allowed = sum(1 for a in ds_attempts if not a["blocked"] and a["ok"])
         ds_errors = sum(1 for a in ds_attempts if not a["ok"])
         ds_acc = ds_correct / total_rows if total_rows > 0 else 0.0
+        ds_judge_calls = sum(1 for a in ds_attempts if a.get("llm_judge_layer_reached"))
 
         dataset_summaries[ds_name] = {
             "total": total_rows,
@@ -229,6 +234,7 @@ def run_benchmark(
             "blocked": ds_blocked,
             "allowed": ds_allowed,
             "errors": ds_errors,
+            "llm_judge_layer_reached": ds_judge_calls,
         }
 
     # 4-Tier Categorical Breakdowns
@@ -252,18 +258,21 @@ def run_benchmark(
                 "blocked": 0,
                 "errors": 0,
                 "accuracy": 1.0 if not expect_blocked else 0.0,
+                "llm_judge_layer_reached": 0,
             }
         blocked = sum(1 for a in attempts_subset if a["blocked"])
         errors = sum(1 for a in attempts_subset if not a["ok"])
         allowed = sum(1 for a in attempts_subset if not a["blocked"] and a["ok"])
         correct = blocked if expect_blocked else allowed
         accuracy = round(correct / total, 4)
+        judge_calls = sum(1 for a in attempts_subset if a.get("llm_judge_layer_reached"))
         return {
             "total": total,
             "allowed": allowed,
             "blocked": blocked,
             "errors": errors,
             "accuracy": accuracy,
+            "llm_judge_layer_reached": judge_calls,
         }
 
     super_pos_stats = calc_stats(super_pos_attempts, expect_blocked=False)
@@ -277,12 +286,14 @@ def run_benchmark(
     total_all = len(all_attempts)
     total_correct = combined_pos_stats["allowed"] + combined_neg_stats["blocked"]
     overall_acc = round(total_correct / total_all, 4) if total_all > 0 else 0.0
+    total_judge_calls = sum(1 for a in all_attempts if a.get("llm_judge_layer_reached"))
 
     bench_results: dict[str, Any] = {
         "experiment": experiment,
         "timestamp": ts,
         "url": url,
         "concurrency": concurrency,
+        "llm_judge_layer_reached": total_judge_calls,
         "summary": {
             "datasets": dataset_summaries,
             "super_positive_cases": super_pos_stats,
@@ -295,6 +306,7 @@ def run_benchmark(
                 "total": total_all,
                 "correct": total_correct,
                 "accuracy": overall_acc,
+                "llm_judge_layer_reached": total_judge_calls,
             },
         },
         "accuracy": {

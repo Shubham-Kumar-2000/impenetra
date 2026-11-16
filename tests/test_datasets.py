@@ -21,6 +21,7 @@ def test_registry_has_expected_datasets():
     assert "adversarial" in DATASET_REGISTRY
     assert "off_charter" in DATASET_REGISTRY
     assert "infused_off_charter" in DATASET_REGISTRY
+    assert "intent_manipulation" in DATASET_REGISTRY
 
     # Obsolete datasets must be removed
     assert "clinc150" not in DATASET_REGISTRY
@@ -30,13 +31,14 @@ def test_registry_has_expected_datasets():
 
 def test_list_datasets():
     datasets = list_datasets()
-    assert len(datasets) == 5
+    assert len(datasets) == 6
     names = [d.name for d in datasets]
     assert "on_charter" in names
     assert "infused_on_charter" in names
     assert "adversarial" in names
     assert "off_charter" in names
     assert "infused_off_charter" in names
+    assert "intent_manipulation" in names
 
 
 def test_get_dataset_info():
@@ -118,6 +120,14 @@ def test_load_infused_off_charter_dataset():
     assert "bread" in prompts_text
 
 
+def test_load_intent_manipulation_dataset():
+    rows = load_guardrail_dataset("intent_manipulation")
+    assert len(rows) == 15
+    # All intent manipulation probes should be expected_blocked = True
+    assert all(r["expected_blocked"] is True for r in rows)
+    assert all(r["type"] in ["negative", "super_negative"] for r in rows)
+
+
 def test_load_all_datasets():
     all_data = load_all_datasets()
     assert set(all_data.keys()) == {
@@ -126,12 +136,14 @@ def test_load_all_datasets():
         "adversarial",
         "off_charter",
         "infused_off_charter",
+        "intent_manipulation",
     }
     assert len(all_data["on_charter"]) == 12
     assert len(all_data["infused_on_charter"]) == 12
     assert len(all_data["adversarial"]) == 15
     assert len(all_data["off_charter"]) == 8
     assert len(all_data["infused_off_charter"]) == 10
+    assert len(all_data["intent_manipulation"]) == 15
 
 
 def test_unknown_dataset_raises():
@@ -221,6 +233,7 @@ def test_datasets_array_and_loader():
         "adversarial",
         "off_charter",
         "infused_off_charter",
+        "intent_manipulation",
     ]
 
     # Verify that load_guardrail_dataset loads every dataset from the array

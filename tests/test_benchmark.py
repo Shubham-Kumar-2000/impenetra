@@ -69,6 +69,7 @@ def test_run_benchmark_end_to_end(tmp_path: Path):
             "total_ms": 12.0,
             "guard_ms": 1.2,
             "blocked": is_attack,
+            "llm_judge_layer_reached": 1 if is_attack else 0,
             "response": "Refused by guardrail." if is_attack else "Allowed response.",
         }
 
@@ -92,11 +93,13 @@ def test_run_benchmark_end_to_end(tmp_path: Path):
         assert "adversarial" in ds_summary
         assert "off_charter" in ds_summary
         assert "infused_off_charter" in ds_summary
+        assert "intent_manipulation" in ds_summary
         assert ds_summary["on_charter"]["total"] == 12
         assert ds_summary["infused_on_charter"]["total"] == 12
         assert ds_summary["adversarial"]["total"] == 15
         assert ds_summary["off_charter"]["total"] == 8
         assert ds_summary["infused_off_charter"]["total"] == 10
+        assert ds_summary["intent_manipulation"]["total"] == 15
 
         # Verify 4-tier categories
         assert res["summary"]["super_positive_cases"]["accuracy"] == 1.0
@@ -107,11 +110,19 @@ def test_run_benchmark_end_to_end(tmp_path: Path):
         assert res["summary"]["negative_cases"]["accuracy"] == 1.0
         assert res["summary"]["overall"]["accuracy"] == 1.0
 
+        # Verify llm_judge_layer_reached in summary and attempts
+        assert res["llm_judge_layer_reached"] == 15 + 8 + 10 + 15
+        assert res["summary"]["overall"]["llm_judge_layer_reached"] == 15 + 8 + 10 + 15
+        assert res["summary"]["datasets"]["adversarial"]["llm_judge_layer_reached"] == 15
+        assert res["summary"]["datasets"]["on_charter"]["llm_judge_layer_reached"] == 0
+
         with open(out_file) as f:
             saved_data = json.load(f)
             assert saved_data["experiment"] == "mock_experiment"
             assert "attempts" in saved_data
-            assert len(saved_data["attempts"]) == 12 + 12 + 15 + 8 + 10
+            assert len(saved_data["attempts"]) == 12 + 12 + 15 + 8 + 10 + 15
+            assert "llm_judge_layer_reached" in saved_data["attempts"][0]
+            assert saved_data["llm_judge_layer_reached"] == 15 + 8 + 10 + 15
 
 
 def test_run_benchmark_subset_datasets(tmp_path: Path):

@@ -82,6 +82,7 @@ def test_llamaguard_check_unsafe_s15_out_of_charter(monkeypatch):
     assert result.category == "S15"
     assert "Out of Charter" in result.details
     assert result.latency_ms >= 0.0
+    assert result.llm_judge_layer_reached == 0
 
 
 def test_llamaguard_check_unsafe_s1_violent_crime(monkeypatch):
@@ -96,6 +97,7 @@ def test_llamaguard_check_unsafe_s1_violent_crime(monkeypatch):
     assert result.allowed is False
     assert result.category == "S1"
     assert "Violent Crimes" in result.details
+    assert result.llm_judge_layer_reached == 0
 
 
 def test_llamaguard_http_fallback(monkeypatch):
