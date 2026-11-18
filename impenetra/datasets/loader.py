@@ -12,7 +12,7 @@ from typing import Any
 from .registry import DATASET_REGISTRY, DatasetInfo
 
 REQUIRED_COLUMNS = ["prompt", "expected_blocked", "type", "subtype"]
-ALLOWED_TYPES = {"super_positive", "positive", "negative", "super_negative"}
+ALLOWED_TYPES = {"positive", "negative"}
 
 
 def parse_boolean(value: Any) -> bool:
@@ -42,9 +42,9 @@ def load_guardrail_dataset(
     - Headers must contain: 'prompt', 'expected_blocked', 'type', 'subtype'
     - 'prompt': non-empty string
     - 'expected_blocked': strictly 'true' or 'false'
-    - 'type': strictly one of {'super_positive', 'positive', 'negative', 'super_negative'}
-    - 'super_positive' and 'positive' must have expected_blocked=false
-    - 'negative' and 'super_negative' must have expected_blocked=true
+    - 'type': strictly one of {'positive', 'negative'}
+    - 'positive' must have expected_blocked=false
+    - 'negative' must have expected_blocked=true
 
     Raises:
         ValueError: If file is missing or any contract check fails.
@@ -98,12 +98,12 @@ def load_guardrail_dataset(
                 )
 
             # Strict cross-validation: expected_blocked vs type
-            if raw_type in {"super_positive", "positive"} and expected_blocked is not False:
+            if raw_type == "positive" and expected_blocked is not False:
                 raise ValueError(
                     f"Dataset '{dataset_name}' row {row_idx}: Type '{raw_type}' "
                     f"must have expected_blocked=false, got '{raw_blocked}'."
                 )
-            if raw_type in {"negative", "super_negative"} and expected_blocked is not True:
+            if raw_type == "negative" and expected_blocked is not True:
                 raise ValueError(
                     f"Dataset '{dataset_name}' row {row_idx}: Type '{raw_type}' "
                     f"must have expected_blocked=true, got '{raw_blocked}'."

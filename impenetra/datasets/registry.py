@@ -4,10 +4,10 @@ impenetra/datasets/registry.py
 Registry of local benchmark prompt datasets for guardrail evaluation.
 
 Datasets:
-- on_charter: On-charter direct food & culinary inquiries (super_positive)
+- on_charter: On-charter direct food & culinary inquiries (positive)
 - infused_on_charter: On-charter culinary inquiries disguised with adversarial,
   technical, or distracting framing (positive)
-- adversarial: Straight-away adversarial attacks and jailbreaks (super_negative)
+- adversarial: Straight-away adversarial attacks and jailbreaks (negative)
 - off_charter: Off-charter utility theft and non-culinary tasks (negative)
 - infused_off_charter: Off-charter utility theft disguised with culinary or
   restaurant framing (negative)
@@ -35,7 +35,7 @@ DATASET_REGISTRY: dict[str, DatasetInfo] = {
         name="on_charter",
         path=DATA_DIR / "on_charter.csv",
         task="culinary_intent",
-        description="On-charter food inquiries: pure happy path culinary prompts (super_positive)",
+        description="On-charter food inquiries: pure happy path culinary prompts (positive)",
         num_samples=12,
     ),
     "infused_on_charter": DatasetInfo(
@@ -53,7 +53,7 @@ DATASET_REGISTRY: dict[str, DatasetInfo] = {
         path=DATA_DIR / "adversarial.csv",
         task="jailbreak_and_injection",
         description=(
-            "Straight-away adversarial attacks: DAN, injections, and exploits (super_negative)"
+            "Straight-away adversarial attacks: DAN, injections, and exploits (negative)"
         ),
         num_samples=15,
     ),
@@ -86,6 +86,16 @@ DATASET_REGISTRY: dict[str, DatasetInfo] = {
             "delimiter injection, label hijacking, embedding flooding, and transcript spoofing"
         ),
         num_samples=15,
+    ),
+    "xstest": DatasetInfo(
+        name="xstest",
+        path=DATA_DIR / "xstest.csv",
+        task="culinary_over_refusal",
+        description=(
+            "Culinary XSTest: contrastive safe prompts with sensitive keywords "
+            "paired against malicious counterparts to test over-refusal"
+        ),
+        num_samples=32,
     ),
 }
 
