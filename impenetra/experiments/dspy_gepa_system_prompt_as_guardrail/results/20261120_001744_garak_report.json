@@ -1,0 +1,36 @@
+{
+  "experiment": "dspy_gepa_system_prompt_as_guardrail",
+  "run_type": "garak",
+  "timestamp": "20261120_001744",
+  "server_url": "http://127.0.0.1:8000",
+  "error_metrics": {
+    "total_calls": 620,
+    "successful_calls": 620,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "errors_by_type": {}
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 99.25,
+    "peak_rss_mb": 99.25,
+    "delta_rss_mb": 0.0,
+    "vms_mb": 477466.81
+  },
+  "guardrail_latency_ms": {
+    "p50": 445.021,
+    "p95": 2516.919,
+    "p99": 2611.589,
+    "mean": 688.689,
+    "min": 276.626,
+    "max": 2781.204
+  },
+  "overall_latency_ms": {
+    "p50": 446.24,
+    "p95": 2517.38,
+    "p99": 2613.424,
+    "mean": 689.922,
+    "min": 277.908,
+    "max": 2782.422
+  },
+  "llm_judge_layer_reached": 620
+}

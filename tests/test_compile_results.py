@@ -33,12 +33,7 @@ def test_classify_probe_expectation():
     assert classify_probe_expectation("probes.dan.DanInTheWild") == "negative"
     assert classify_probe_expectation("probes.promptinject.HijackKillHumans") == "negative"
     assert classify_probe_expectation("probes.off_charter.OffCharterCodeGen") == "negative"
-    assert (
-        classify_probe_expectation(
-            "probes.donotanswer.DiscriminationExclusionToxicityHatefulOffensive"
-        )
-        == "negative"
-    )
+    assert classify_probe_expectation("probes.encoding.Base64") == "negative"
     assert classify_probe_expectation("probes.phrasing.PastTense") == "negative"
     assert classify_probe_expectation("probes.topic.WordnetBlockedWords") == "negative"
 
@@ -191,13 +186,22 @@ def test_compile_experiment_results_end_to_end(tmp_path: Path):
     assert (results_dir / "final_report.json").exists()
     assert (results_dir / "final_report.md").exists()
 
-    assert report["accuracy"]["positive_cases"]["total"] == 6  # 5 from bench + 1 from jsonl
-    assert report["accuracy"]["positive_cases"]["allowed"] == 6
-    assert report["accuracy"]["positive_cases"]["accuracy"] == 1.0
+    assert report["accuracy"]["positive"]["total"] == 6  # 5 from bench + 1 from jsonl
+    assert report["accuracy"]["positive"]["allowed"] == 6
+    assert report["accuracy"]["positive"]["accuracy"] == 1.0
+    assert "positive_cases" not in report["accuracy"]
 
-    assert report["accuracy"]["negative_cases"]["total"] == 11  # 10 from bench + 1 from jsonl
-    assert report["accuracy"]["negative_cases"]["blocked"] == 11
-    assert report["accuracy"]["negative_cases"]["accuracy"] == 1.0
+    assert report["accuracy"]["negative"]["total"] == 11  # 10 from bench + 1 from jsonl
+    assert report["accuracy"]["negative"]["blocked"] == 11
+    assert report["accuracy"]["negative"]["accuracy"] == 1.0
+    assert "negative_cases" not in report["accuracy"]
+
+    assert report["accuracy"]["precision"] == 1.0
+    assert report["accuracy"]["recall"] == 1.0
+    assert report["accuracy"]["sensitivity"] == 1.0
+    assert report["accuracy"]["f1_score"] == 1.0
+    assert report["accuracy"]["fpr"] == 0.0
+    assert report["confusion_matrix"] == {"tp": 11, "fn": 0, "fp": 0, "tn": 6}
 
     assert report["guardrail_latency"]["positive_cases_p95_ms"] == 1.2
     assert report["guardrail_latency"]["negative_cases_p95_ms"] == 2.5
@@ -289,14 +293,16 @@ def test_positive_latency_never_falls_back_to_adversarial_garak_run(tmp_path: Pa
     assert report["guardrail_latency"]["guard_mean_ms"] == 20.9
 
     # Peak memory for positive cases must be 110.0MB and negative 160.0MB
-    assert report["memory_footprint"]["positive_cases"]["peak_rss_mb"] == 110.0
-    assert report["memory_footprint"]["negative_cases"]["peak_rss_mb"] == 160.0
+    assert report["memory_footprint"]["positive"]["peak_rss_mb"] == 110.0
+    assert report["memory_footprint"]["negative"]["peak_rss_mb"] == 160.0
+    assert "positive_cases" not in report["memory_footprint"]
+    assert "negative_cases" not in report["memory_footprint"]
     assert report["memory_footprint"]["peak_rss_mb"] == 160.0
 
 
 def test_compile_results_four_categories(tmp_path: Path):
-    """Verify that compile_experiment_results produces accurate metrics across all 4 categories."""
-    results_dir = tmp_path / "impenetra" / "experiments" / "test_4cat" / "results"
+    """Verify that compile_experiment_results produces accurate metrics across categories."""
+    results_dir = tmp_path / "impenetra" / "experiments" / "test_2cat" / "results"
     results_dir.mkdir(parents=True)
 
     # 1. Garak report with 5 negative red-team probes
@@ -316,21 +322,9 @@ def test_compile_results_four_categories(tmp_path: Path):
                 + "\n"
             )
 
-    # 2. Benchmark data with 4 categories
+    # 2. Benchmark data with positive and negative categories
     bench_json = results_dir / "20261115_bench.json"
-    super_pos_attempts = [
-        {
-            "type": "super_positive",
-            "expected_blocked": False,
-            "blocked": False,
-            "ok": True,
-            "guard_ms": 1.1,
-            "total_ms": 20.0,
-            "llm_judge_layer_reached": 1 if i < 4 else 0,
-        }
-        for i in range(12)
-    ]
-    pos_distracted_attempts = [
+    pos_attempts = [
         {
             "type": "positive",
             "expected_blocked": False,
@@ -338,75 +332,33 @@ def test_compile_results_four_categories(tmp_path: Path):
             "ok": True,
             "guard_ms": 1.5,
             "total_ms": 25.0,
-            "llm_judge_layer_reached": 1 if i < 2 else 0,
+            "llm_judge_layer_reached": 1 if i < 6 else 0,
         }
-        for i in range(6)
+        for i in range(18)
     ]
-    off_charter_attempts = [
+    neg_attempts = [
         {
             "type": "negative",
             "expected_blocked": True,
             "blocked": True,
             "ok": True,
-            "guard_ms": 2.0,
-            "total_ms": 30.0,
-            "llm_judge_layer_reached": 1 if i < 3 else 0,
-        }
-        for i in range(8)
-    ]
-    super_neg_attempts = [
-        {
-            "type": "super_negative",
-            "expected_blocked": True,
-            "blocked": True,
-            "ok": True,
             "guard_ms": 2.5,
             "total_ms": 35.0,
-            "llm_judge_layer_reached": 1 if i < 5 else 0,
+            "llm_judge_layer_reached": 1 if i < 8 else 0,
         }
-        for i in range(15)
+        for i in range(23)
     ]
 
-    all_attempts = (
-        super_pos_attempts + pos_distracted_attempts + off_charter_attempts + super_neg_attempts
-    )
+    all_attempts = pos_attempts + neg_attempts
     bench_data = {
-        "experiment": "test_4cat",
+        "experiment": "test_2cat",
         "summary": {
-            "super_positive_cases": {
-                "total": 12,
-                "allowed": 12,
-                "blocked": 0,
-                "accuracy": 1.0,
-                "llm_judge_layer_reached": 4,
-            },
-            "distracted_positive_cases": {
-                "total": 6,
-                "allowed": 6,
-                "blocked": 0,
-                "accuracy": 1.0,
-                "llm_judge_layer_reached": 2,
-            },
             "positive_cases": {
                 "total": 18,
                 "allowed": 18,
                 "blocked": 0,
                 "accuracy": 1.0,
                 "llm_judge_layer_reached": 6,
-            },
-            "off_charter_negative_cases": {
-                "total": 8,
-                "blocked": 8,
-                "allowed": 0,
-                "accuracy": 1.0,
-                "llm_judge_layer_reached": 3,
-            },
-            "super_negative_cases": {
-                "total": 15,
-                "blocked": 15,
-                "allowed": 0,
-                "accuracy": 1.0,
-                "llm_judge_layer_reached": 5,
             },
             "negative_cases": {
                 "total": 23,
@@ -447,66 +399,63 @@ def test_compile_results_four_categories(tmp_path: Path):
         )
 
     # Run compilation
-    report = compile_experiment_results(results_dir, experiment_name="test_4cat")
+    report = compile_experiment_results(results_dir, experiment_name="test_2cat")
 
-    # 1. Accuracy across the 4 categories
+    # 1. Accuracy across positive and negative
     acc = report["accuracy"]
-    assert acc["super_positive"]["total"] == 12
-    assert acc["super_positive"]["allowed"] == 12
-    assert acc["super_positive"]["accuracy"] == 1.0
-
-    assert acc["positive"]["total"] == 18  # 12 super_positive + 6 positive
+    assert acc["positive"]["total"] == 18
     assert acc["positive"]["allowed"] == 18
     assert acc["positive"]["accuracy"] == 1.0
-    assert acc["positive_cases"]["total"] == 18
+    assert "positive_cases" not in acc
 
-    # super_negative MUST strictly contain the 15 benchmark attacks (Garak probes excluded!)
-    assert acc["super_negative"]["total"] == 15
-    assert acc["super_negative"]["blocked"] == 15
-    assert acc["super_negative"]["accuracy"] == 1.0
-
-    # negative MUST contain all threats: 8 off-charter + 15 super_negative + 5 garak = 28
+    # negative MUST contain all threats: 23 bench + 5 garak = 28
     assert acc["negative"]["total"] == 28
     assert acc["negative"]["blocked"] == 28
     assert acc["negative"]["accuracy"] == 1.0
-    assert acc["negative_cases"]["total"] == 28
+    assert "negative_cases" not in acc
 
-    # 2. Latencies across the 4 categories
+    assert "super_positive" not in acc
+    assert "super_negative" not in acc
+
+    # 2. Latencies
     glat = report["guardrail_latency"]
-    assert glat["super_positive_cases_p95_ms"] == 1.1
-    assert glat["super_positive_cases_mean_ms"] == 1.1
-    assert glat["super_negative_cases_p95_ms"] == 2.5
-    assert glat["super_negative_cases_mean_ms"] == 2.5
     assert glat["positive_cases_p95_ms"] == 1.5
     assert glat["negative_cases_p95_ms"] == 3.0
+    assert "super_positive_cases_p95_ms" not in glat
+    assert "super_negative_cases_p95_ms" not in glat
 
-    # 3. Memory across the 4 categories
+    # 3. Memory
     mem = report["memory_footprint"]
-    assert mem["super_positive"]["peak_rss_mb"] == 170.0
-    assert mem["super_positive"]["delta_rss_mb"] == 20.0
-    assert mem["positive_cases"]["peak_rss_mb"] == 170.0
-    assert mem["negative_cases"]["peak_rss_mb"] == 190.0
-    assert mem["super_negative"]["peak_rss_mb"] == 170.0
+    assert mem["positive"]["peak_rss_mb"] == 170.0
+    assert mem["negative"]["peak_rss_mb"] == 190.0
+    assert "positive_cases" not in mem
+    assert "negative_cases" not in mem
+    assert "super_positive" not in mem
+    assert "super_negative" not in mem
 
-    # 4. Markdown report contains all 4 categories in table
+    # 4. Markdown report contains positive and negative
     md_text = (results_dir / "final_report.md").read_text(encoding="utf-8")
-    assert "**Super-Positive**" in md_text
     assert "**Positive**" in md_text
     assert "**Negative**" in md_text
-    assert "**Super-Negative**" in md_text
+    assert "**Super-Positive**" not in md_text
+    assert "**Super-Negative**" not in md_text
+    assert "**Precision**" in md_text
+    assert "**Recall (Sensitivity)**" in md_text
+    assert "**F1 Score**" in md_text
+    assert "**False Positive Rate (FPR)**" in md_text
 
-    # 5. LLM judge calls across all 4 categories
-    assert acc["super_positive"]["llm_judge_layer_reached"] == 4
+    # 5. LLM judge calls
+    assert acc["precision"] == 1.0
+    assert acc["recall"] == 1.0
+    assert acc["sensitivity"] == 1.0
+    assert acc["f1_score"] == 1.0
+    assert acc["fpr"] == 0.0
     assert acc["positive"]["llm_judge_layer_reached"] == 6
-    assert acc["positive_cases"]["llm_judge_layer_reached"] == 6
-    assert acc["super_negative"]["llm_judge_layer_reached"] == 5
     assert acc["negative"]["llm_judge_layer_reached"] == 18  # 8 bench + 10 garak
-    assert acc["negative_cases"]["llm_judge_layer_reached"] == 18
 
     assert report["llm_judge_layer_reached"] == 24
     assert "total_llm_judge_calls" not in report
     assert "llm_judge_calls" not in report
-    assert "total_llm_judge_calls" not in acc["super_positive"]
 
     assert "**Total LLM Judge Calls:** `24`" in md_text
     assert "## 5. LLM Judge Layer Breakdown" in md_text
@@ -527,22 +476,10 @@ def test_compile_results_benchmark_only_preserves_judge_calls(tmp_path: Path):
     bench_data = {
         "experiment": "bench_only",
         "summary": {
-            "super_positive_cases": {
-                "total": 5,
-                "allowed": 5,
-                "blocked": 0,
-                "llm_judge_layer_reached": 5,
-            },
             "positive_cases": {
                 "total": 5,
                 "allowed": 5,
                 "blocked": 0,
-                "llm_judge_layer_reached": 5,
-            },
-            "super_negative_cases": {
-                "total": 5,
-                "blocked": 5,
-                "allowed": 0,
                 "llm_judge_layer_reached": 5,
             },
             "negative_cases": {
@@ -554,7 +491,7 @@ def test_compile_results_benchmark_only_preserves_judge_calls(tmp_path: Path):
         },
         "attempts": [
             {
-                "type": "super_positive",
+                "type": "positive",
                 "expected_blocked": False,
                 "blocked": False,
                 "ok": True,
@@ -564,7 +501,7 @@ def test_compile_results_benchmark_only_preserves_judge_calls(tmp_path: Path):
         ]
         + [
             {
-                "type": "super_negative",
+                "type": "negative",
                 "expected_blocked": True,
                 "blocked": True,
                 "ok": True,
@@ -580,13 +517,67 @@ def test_compile_results_benchmark_only_preserves_judge_calls(tmp_path: Path):
 
     # Verify judge calls evaluated properly without run_reports
     assert report["llm_judge_layer_reached"] == 10
-    assert report["accuracy"]["super_positive"]["llm_judge_layer_reached"] == 5
     assert report["accuracy"]["positive"]["llm_judge_layer_reached"] == 5
-    assert report["accuracy"]["super_negative"]["llm_judge_layer_reached"] == 5
     assert report["accuracy"]["negative"]["llm_judge_layer_reached"] == 5
+    assert "super_positive" not in report["accuracy"]
+    assert "super_negative" not in report["accuracy"]
 
     # Verify markdown report contains judge calls
     md_text = (results_dir / "final_report.md").read_text(encoding="utf-8")
     assert "**Total LLM Judge Calls:** `10`" in md_text
     assert "## 5. LLM Judge Layer Breakdown" in md_text
     assert "| **Overall Total** | **`10`** |" in md_text
+
+
+def test_compile_results_classification_metrics_mixed_confusion_matrix(tmp_path: Path):
+    """
+    Verifies Precision, Recall (Sensitivity), F1 Score, and FPR calculation with mixed outcomes:
+    - 10 benign queries: 8 allowed (TN=8), 2 falsely blocked (FP=2) -> FPR = 2/10 = 0.20
+    - 20 threats: 16 blocked (TP=16), 4 bypassed (FN=4) -> Recall = 16/20 = 0.80
+    - Precision = 16/(16+2) = 16/18 = 0.8889
+    - F1 Score = 2 * (0.8889 * 0.80) / (0.8889 + 0.80) = 0.8421
+    """
+    results_dir = tmp_path / "mixed_metrics" / "results"
+    results_dir.mkdir(parents=True)
+
+    bench_json = results_dir / "20261118_bench.json"
+    pos_attempts = [
+        {"type": "positive", "expected_blocked": False, "blocked": False, "ok": True}
+        for _ in range(8)
+    ] + [
+        {"type": "positive", "expected_blocked": False, "blocked": True, "ok": False}
+        for _ in range(2)
+    ]
+    neg_attempts = [
+        {"type": "negative", "expected_blocked": True, "blocked": True, "ok": True}
+        for _ in range(16)
+    ] + [
+        {"type": "negative", "expected_blocked": True, "blocked": False, "ok": False}
+        for _ in range(4)
+    ]
+
+    bench_data = {
+        "experiment": "mixed_metrics",
+        "summary": {
+            "positive_cases": {"total": 10, "allowed": 8, "blocked": 2},
+            "negative_cases": {"total": 20, "blocked": 16, "allowed": 4},
+        },
+        "attempts": pos_attempts + neg_attempts,
+    }
+    with open(bench_json, "w", encoding="utf-8") as f:
+        json.dump(bench_data, f)
+
+    report = compile_experiment_results(results_dir, experiment_name="mixed_metrics")
+    acc = report["accuracy"]
+
+    assert acc["precision"] == 0.8889
+    assert acc["precision_pct"] == "88.9%"
+    assert acc["recall"] == 0.8
+    assert acc["recall_pct"] == "80.0%"
+    assert acc["sensitivity"] == 0.8
+    assert acc["sensitivity_pct"] == "80.0%"
+    assert acc["f1_score"] == 0.8421
+    assert acc["f1_score_pct"] == "84.2%"
+    assert acc["fpr"] == 0.2
+    assert acc["fpr_pct"] == "20.0%"
+    assert report["confusion_matrix"] == {"tp": 16, "fn": 4, "fp": 2, "tn": 8}

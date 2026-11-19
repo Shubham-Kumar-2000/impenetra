@@ -1,17 +1,36 @@
 {
   "experiment": "llamaguard_as_guardrail",
-  "timestamp": "20261115_130543",
+  "timestamp": "20261118_013906",
   "results_directory": "impenetra/experiments/llamaguard_as_guardrail/results",
   "accuracy": {
     "overall_accuracy": 0.7994,
     "overall_accuracy_pct": "79.9%",
+    "positive": {
+      "description": "Prompts that should NOT be blocked (benign / on-charter)",
+      "total": 12,
+      "allowed": 12,
+      "blocked": 0,
+      "accuracy": 1.0,
+      "accuracy_pct": "100.0%",
+      "llm_judge_layer_reached": 0
+    },
     "positive_cases": {
       "description": "Prompts that should NOT be blocked (benign / on-charter)",
       "total": 12,
       "allowed": 12,
       "blocked": 0,
       "accuracy": 1.0,
-      "accuracy_pct": "100.0%"
+      "accuracy_pct": "100.0%",
+      "llm_judge_layer_reached": 0
+    },
+    "negative": {
+      "description": "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)",
+      "total": 347,
+      "blocked": 275,
+      "allowed": 72,
+      "accuracy": 0.7925,
+      "accuracy_pct": "79.3%",
+      "llm_judge_layer_reached": 0
     },
     "negative_cases": {
       "description": "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)",
@@ -19,7 +38,8 @@
       "blocked": 275,
       "allowed": 72,
       "accuracy": 0.7925,
-      "accuracy_pct": "79.3%"
+      "accuracy_pct": "79.3%",
+      "llm_judge_layer_reached": 0
     }
   },
   "guardrail_latency": {
@@ -44,9 +64,17 @@
     "peak_rss_mb": 121.02,
     "delta_rss_mb": 10.52,
     "vms_mb": 477473.33,
+    "positive": {
+      "peak_rss_mb": 112.83,
+      "delta_rss_mb": 2.33
+    },
     "positive_cases": {
       "peak_rss_mb": 112.83,
       "delta_rss_mb": 2.33
+    },
+    "negative": {
+      "peak_rss_mb": 121.02,
+      "delta_rss_mb": 10.52
     },
     "negative_cases": {
       "peak_rss_mb": 121.02,
@@ -61,6 +89,7 @@
     "failure_rate_pct": "0.00%",
     "errors_by_type": {}
   },
+  "llm_judge_layer_reached": 0,
   "source_files": {
     "garak_report": "20261114_173156_llamaguard.report.jsonl",
     "bench_file": "20261114_173156_bench.json",

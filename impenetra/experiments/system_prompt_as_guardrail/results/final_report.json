@@ -1,73 +1,92 @@
 {
   "experiment": "system_prompt_as_guardrail",
-  "timestamp": "20261115_140626",
+  "timestamp": "20261119_182301",
   "results_directory": "impenetra/experiments/system_prompt_as_guardrail/results",
   "accuracy": {
-    "overall_accuracy": 0.8802,
-    "overall_accuracy_pct": "88.0%",
-    "positive_cases": {
+    "overall_accuracy": 0.884,
+    "overall_accuracy_pct": "88.4%",
+    "precision": 0.987,
+    "precision_pct": "98.7%",
+    "recall": 0.8889,
+    "recall_pct": "88.9%",
+    "sensitivity": 0.8889,
+    "sensitivity_pct": "88.9%",
+    "f1_score": 0.9354,
+    "f1_score_pct": "93.5%",
+    "fpr": 0.2,
+    "fpr_pct": "20.0%",
+    "positive": {
       "description": "Prompts that should NOT be blocked (benign / on-charter)",
-      "total": 12,
-      "allowed": 12,
-      "blocked": 0,
-      "accuracy": 1.0,
-      "accuracy_pct": "100.0%"
+      "total": 40,
+      "allowed": 32,
+      "blocked": 8,
+      "accuracy": 0.8,
+      "accuracy_pct": "80.0%",
+      "llm_judge_layer_reached": 40
     },
-    "negative_cases": {
+    "negative": {
       "description": "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)",
-      "total": 347,
-      "blocked": 304,
-      "allowed": 43,
-      "accuracy": 0.8761,
-      "accuracy_pct": "87.6%"
+      "total": 684,
+      "blocked": 608,
+      "allowed": 76,
+      "accuracy": 0.8889,
+      "accuracy_pct": "88.9%",
+      "llm_judge_layer_reached": 684
     }
   },
+  "confusion_matrix": {
+    "tp": 608,
+    "fn": 76,
+    "fp": 8,
+    "tn": 32
+  },
   "guardrail_latency": {
-    "positive_cases_p95_ms": 605.268,
-    "positive_cases_mean_ms": 380.254,
-    "negative_cases_p95_ms": 2779.621,
-    "negative_cases_mean_ms": 719.41,
-    "overall_p95_ms": 2779.621,
-    "overall_mean_ms": 549.83,
-    "guard_mean_ms": 549.83
+    "positive_cases_p95_ms": 434.521,
+    "positive_cases_mean_ms": 333.067,
+    "negative_cases_p95_ms": 2465.427,
+    "negative_cases_mean_ms": 601.82,
+    "overall_p95_ms": 2465.427,
+    "overall_mean_ms": 467.44,
+    "guard_mean_ms": 467.44
   },
   "overall_latency": {
-    "positive_cases_p95_ms": 611.408,
-    "positive_cases_mean_ms": 386.05,
-    "negative_cases_p95_ms": 2780.803,
-    "negative_cases_mean_ms": 721.005,
-    "overall_p95_ms": 2780.803,
-    "overall_mean_ms": 553.53
+    "positive_cases_p95_ms": 8679.648,
+    "positive_cases_mean_ms": 3417.528,
+    "negative_cases_p95_ms": 9295.019,
+    "negative_cases_mean_ms": 965.783,
+    "overall_p95_ms": 9295.019,
+    "overall_mean_ms": 2191.66
   },
   "memory_footprint": {
-    "idle_rss_mb": 96.47,
-    "peak_rss_mb": 102.56,
-    "delta_rss_mb": 6.09,
-    "vms_mb": 477466.55,
-    "positive_cases": {
-      "peak_rss_mb": 102.12,
-      "delta_rss_mb": 5.65
+    "idle_rss_mb": 77.77,
+    "peak_rss_mb": 102.25,
+    "delta_rss_mb": 24.48,
+    "vms_mb": 477467.09,
+    "positive": {
+      "peak_rss_mb": 102.25,
+      "delta_rss_mb": 24.48
     },
-    "negative_cases": {
-      "peak_rss_mb": 102.56,
-      "delta_rss_mb": 6.09
+    "negative": {
+      "peak_rss_mb": 77.77,
+      "delta_rss_mb": 0.0
     }
   },
   "error_metrics": {
-    "total_calls": 359,
-    "successful_calls": 359,
+    "total_calls": 724,
+    "successful_calls": 724,
     "failed_calls": 0,
     "failure_rate": 0.0,
     "failure_rate_pct": "0.00%",
     "errors_by_type": {}
   },
+  "llm_judge_layer_reached": 724,
   "source_files": {
-    "garak_report": "20261115_135904_systemprompt.report.jsonl",
-    "bench_file": "20261115_135904_bench.json",
-    "latest_run_report": "20261115_135904_garak_report.json",
+    "garak_report": "20261119_181335_systemprompt.report.jsonl",
+    "bench_file": "20261119_181335_bench.json",
+    "latest_run_report": "20261119_181335_garak_report.json",
     "run_reports": [
-      "20261115_135904_garak_report.json",
-      "20261115_135904_bench_report.json"
+      "20261119_181335_garak_report.json",
+      "20261119_181335_bench_report.json"
     ]
   }
 }
