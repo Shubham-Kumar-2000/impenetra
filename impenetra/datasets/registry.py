@@ -22,30 +22,34 @@ DATA_DIR = Path(__file__).resolve().parent / "data"
 # In-Charter Intent Definitions for CLINC150
 # ---------------------------------------------------------------------------
 
-CULINARY_IN_CHARTER_INTENTS: frozenset[str] = frozenset({
-    "recipe",
-    "ingredients_list",
-    "ingredient_substitution",
-    "cook_time",
-    "calories",
-    "nutrition_info",
-    "food_last",
-    "meal_suggestion",
-})
+CULINARY_IN_CHARTER_INTENTS: frozenset[str] = frozenset(
+    {
+        "recipe",
+        "ingredients_list",
+        "ingredient_substitution",
+        "cook_time",
+        "calories",
+        "nutrition_info",
+        "food_last",
+        "meal_suggestion",
+    }
+)
 
-DIALOGUE_IN_CHARTER_INTENTS: frozenset[str] = frozenset({
-    "greeting",
-    "goodbye",
-    "thank_you",
-    "yes",
-    "no",
-    "cancel",
-    "repeat",
-    "what_can_i_ask_you",
-    "maybe",
-    "are_you_a_bot",
-    "what_is_your_name",
-})
+DIALOGUE_IN_CHARTER_INTENTS: frozenset[str] = frozenset(
+    {
+        "greeting",
+        "goodbye",
+        "thank_you",
+        "yes",
+        "no",
+        "cancel",
+        "repeat",
+        "what_can_i_ask_you",
+        "maybe",
+        "are_you_a_bot",
+        "what_is_your_name",
+    }
+)
 
 IN_CHARTER_INTENTS: frozenset[str] = CULINARY_IN_CHARTER_INTENTS | DIALOGUE_IN_CHARTER_INTENTS
 
@@ -88,9 +92,7 @@ DATASET_REGISTRY: dict[str, DatasetInfo] = {
         name="adversarial",
         path=DATA_DIR / "adversarial.csv",
         task="jailbreak_and_injection",
-        description=(
-            "Straight-away adversarial attacks: DAN, injections, and exploits (negative)"
-        ),
+        description=("Straight-away adversarial attacks: DAN, injections, and exploits (negative)"),
         num_samples=15,
     ),
     "off_charter": DatasetInfo(
@@ -138,8 +140,9 @@ DATASET_REGISTRY: dict[str, DatasetInfo] = {
         task="intent_classification",
         description=(
             "150 intent classes across 10 domains + out-of-scope detection (CLINC150 data_small). "
-            "Culinary inquiries, dialogue conventions, and assistant identity are in-charter positive; "
-            "all other tasks (including measurement conversion, timers, and shopping lists) are off-charter negative."
+            "Culinary inquiries, dialogue conventions, and assistant identity are in-charter "
+            "positive; all other tasks (including measurement conversion, timers, and shopping "
+            "lists) are off-charter negative."
         ),
         hf_path="DeepPavlov/clinc_oos",
         hf_config="small",

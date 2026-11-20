@@ -208,7 +208,12 @@ def test_load_clinc150_train_split():
 def test_clinc150_off_charter_utilities():
     rows = load_guardrail_dataset("clinc150", split="test")
     # Off-charter utilities specified by user must be negative / expected_blocked=True
-    off_charter_utilities = {"measurement_conversion", "timer", "shopping_list", "shopping_list_update"}
+    off_charter_utilities = {
+        "measurement_conversion",
+        "timer",
+        "shopping_list",
+        "shopping_list_update",
+    }
     for util in off_charter_utilities:
         util_rows = [r for r in rows if r["subtype"] == util]
         assert len(util_rows) == 30

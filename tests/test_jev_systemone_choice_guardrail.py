@@ -233,7 +233,8 @@ def test_parse_choice_below_floor_blocked():
 
 
 def test_parse_choice_benign_below_floor_blocked():
-    """Verify that if benign does not meet CONFIDENCE_THRESHOLD_PERCENTAGE, the prompt is blocked."""
+    """Verify that if benign does not meet CONFIDENCE_THRESHOLD_PERCENTAGE, the prompt is blocked.
+    """
     sub_thresh = (CONFIDENCE_THRESHOLD_PERCENTAGE - 10.0) / 100.0
     data = {
         "answers": {
@@ -530,7 +531,10 @@ def test_server_native_endpoints_and_telemetry(monkeypatch):
         comp_body = comp_res.json()
         assert comp_body["guardrail"]["allowed"] is True
         assert comp_body["guardrail"]["llm_judge_layer_reached"] == 0
-        assert DEFAULT_ACCEPTANCE.format(prompt="How many calories in an apple?") in comp_body["choices"][0]["message"]["content"]
+        assert (
+            DEFAULT_ACCEPTANCE.format(prompt="How many calories in an apple?")
+            in comp_body["choices"][0]["message"]["content"]
+        )
 
     # 6. Telemetry metrics confirm llm_judge_layer_reached == 0 across all calls
     metrics_res = client.get("/metrics")

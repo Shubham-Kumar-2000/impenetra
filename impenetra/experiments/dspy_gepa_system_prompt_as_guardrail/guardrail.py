@@ -70,11 +70,7 @@ def resolve_main_model_api_base(explicit_url: str | None = None) -> str:
     Expects https://<domain> via SYSTEM_PROMPT_MAIN_MODEL_API_BASE or explicit parameter.
     Automatically appends '/v1' path by default.
     """
-    raw = (
-        explicit_url
-        or os.getenv("SYSTEM_PROMPT_MAIN_MODEL_API_BASE")
-        or ""
-    ).strip().rstrip("/")
+    raw = (explicit_url or os.getenv("SYSTEM_PROMPT_MAIN_MODEL_API_BASE") or "").strip().rstrip("/")
     if not raw:
         raise ValueError(
             "SYSTEM_PROMPT_MAIN_MODEL_API_BASE environment variable is required "

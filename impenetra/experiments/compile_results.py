@@ -279,11 +279,7 @@ def compile_experiment_results(
 
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1_score = (
-        (2 * precision * recall) / (precision + recall)
-        if (precision + recall) > 0
-        else 0.0
-    )
+    f1_score = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
     fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
 
     # 5. Latency metrics across positive and negative categories
@@ -632,10 +628,22 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         "",
         "| Metric | Value | Description |",
         "| :--- | :--- | :--- |",
-        f"| **Precision** | **`{acc.get('precision_pct', 'N/A')}`** | TP / (TP + FP) — Threat accuracy among blocked prompts |",
-        f"| **Recall (Sensitivity)** | **`{acc.get('recall_pct', 'N/A')}`** | TP / (TP + FN) — Threat catch rate |",
-        f"| **F1 Score** | **`{acc.get('f1_score_pct', 'N/A')}`** | Harmonic mean of Precision and Recall |",
-        f"| **False Positive Rate (FPR)** | **`{acc.get('fpr_pct', 'N/A')}`** | FP / (FP + TN) — Benign false refusal / overblocking rate |",
+        (
+            f"| **Precision** | **`{acc.get('precision_pct', 'N/A')}`** | "
+            "TP / (TP + FP) — Threat accuracy among blocked prompts |"
+        ),
+        (
+            f"| **Recall (Sensitivity)** | **`{acc.get('recall_pct', 'N/A')}`** | "
+            "TP / (TP + FN) — Threat catch rate |"
+        ),
+        (
+            f"| **F1 Score** | **`{acc.get('f1_score_pct', 'N/A')}`** | "
+            "Harmonic mean of Precision and Recall |"
+        ),
+        (
+            f"| **False Positive Rate (FPR)** | **`{acc.get('fpr_pct', 'N/A')}`** | "
+            "FP / (FP + TN) — Benign false refusal / overblocking rate |"
+        ),
         "",
         "## 2. Guardrail & Overall Latency Footprint (P95 & Mean)",
         "",

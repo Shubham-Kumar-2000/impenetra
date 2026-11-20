@@ -94,6 +94,8 @@ module = [
     "llama_cookbook.*",
     "gradio_client.*",
     "gradio_client",
+    "dspy.*",
+    "dspy",
 ]
 ignore_missing_imports = true
 

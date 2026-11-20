@@ -2,7 +2,8 @@
 Experiment: Jev SystemOne Choice Guardrail Server (TypeSafe.ai)
 ===============================================================
 Uses the Impenetra API framework (create_app) with JevSystemOneChoiceGuardrail.
-Evaluates incoming prompts using TypeSafe.ai's Jev System One model with a multi-class 'choice' primitive.
+Evaluates incoming prompts using TypeSafe.ai's Jev System One model with a multi-class
+'choice' primitive.
 Server runs without an LLM caller (llm_caller=None, agent=False).
 Allowed prompts return DEFAULT_ACCEPTANCE, and blocked prompts return DEFAULT_REFUSAL.
 LLM judge calls remain 0 across all requests.

@@ -15,6 +15,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any, Sequence
 
 try:
     from rich import box
@@ -163,7 +164,7 @@ def extract_report_metrics(final_rep: dict) -> dict:
     }
 
 
-def print_table_plain(all_data: list[tuple[str, str, dict | None]]):
+def print_table_plain(all_data: Sequence[tuple[str, str, Any]]):
     """Plain text table when rich is not available."""
     print("\n" + "=" * 80)
     print("  GUARDRAIL EXPERIMENT FINAL RESULTS COMPARISON")
@@ -188,20 +189,38 @@ def print_table_plain(all_data: list[tuple[str, str, dict | None]]):
         )
         print(f"  Overall Accuracy:                      {m['overall_acc_pct']}")
         print(
-            f"  Classification (Prec/Recall/F1/FPR):   "
+            "  Classification (Prec/Recall/F1/FPR):   "
             f"{m['precision_pct']} / {m['recall_pct']} / {m['f1_score_pct']} / {m['fpr_pct']}"
         )
-        print(f"  Guard Latency P95 (pos/neg/all):       {m['pos_p95']}ms / {m['neg_p95']}ms / {m['all_p95']}ms")
-        print(f"  Guard Latency Mean (pos/neg/all):      {m['pos_mean']}ms / {m['neg_mean']}ms / {m['all_mean']}ms")
-        print(f"  Overall Latency P95 (pos/neg/all):     {m['opos_p95']}ms / {m['oneg_p95']}ms / {m['oall_p95']}ms")
-        print(f"  Overall Latency Mean (pos/neg/all):    {m['opos_mean']}ms / {m['oneg_mean']}ms / {m['oall_mean']}ms")
-        print(f"  Memory RSS (idle/pos/neg/peak):        {m['idle_mb']}MB / {m['pos_mem']}MB / {m['neg_mem']}MB / {m['peak_mb']}MB")
-        print(f"  API Error Metrics (failed/total):      {m['failed_calls']}/{m['total_calls']} ({m['failure_rate_pct']})")
+        print(
+            "  Guard Latency P95 (pos/neg/all):       "
+            f"{m['pos_p95']}ms / {m['neg_p95']}ms / {m['all_p95']}ms"
+        )
+        print(
+            "  Guard Latency Mean (pos/neg/all):      "
+            f"{m['pos_mean']}ms / {m['neg_mean']}ms / {m['all_mean']}ms"
+        )
+        print(
+            "  Overall Latency P95 (pos/neg/all):     "
+            f"{m['opos_p95']}ms / {m['oneg_p95']}ms / {m['oall_p95']}ms"
+        )
+        print(
+            "  Overall Latency Mean (pos/neg/all):    "
+            f"{m['opos_mean']}ms / {m['oneg_mean']}ms / {m['oall_mean']}ms"
+        )
+        print(
+            "  Memory RSS (idle/pos/neg/peak):        "
+            f"{m['idle_mb']}MB / {m['pos_mem']}MB / {m['neg_mem']}MB / {m['peak_mb']}MB"
+        )
+        print(
+            "  API Error Metrics (failed/total):      "
+            f"{m['failed_calls']}/{m['total_calls']} ({m['failure_rate_pct']})"
+        )
 
     print("\n" + "=" * 80 + "\n")
 
 
-def print_table_rich(all_data: list[tuple[str, str, dict | None]]):
+def print_table_rich(all_data: Sequence[tuple[str, str, Any]]):
     """Rich console comparison table."""
     console = Console()
 
@@ -209,7 +228,8 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None]]):
         Panel.fit(
             "[bold cyan]Guardrail Experiments — Final Results Comparison[/bold cyan]\n"
             "[dim]Positive cases: should NOT be blocked | Negative cases: SHOULD be blocked\n"
-            "Metrics: Accuracy, Precision, Recall (Sensitivity), F1 Score, FPR | Latency & Memory[/dim]",
+            "Metrics: Accuracy, Precision, Recall (Sensitivity), F1 Score, FPR | Latency & Memory"
+            "[/dim]",
             border_style="cyan",
         )
     )
@@ -237,9 +257,19 @@ def print_table_rich(all_data: list[tuple[str, str, dict | None]]):
 
         m = extract_report_metrics(final_rep)
 
-        pos_col = "green" if m["pos_acc_val"] >= 0.95 else "yellow" if m["pos_acc_val"] >= 0.8 else "red"
-        neg_col = "green" if m["neg_acc_val"] >= 0.8 else "yellow" if m["neg_acc_val"] >= 0.5 else "red"
-        all_col = "green" if m["overall_acc_val"] >= 0.85 else "yellow" if m["overall_acc_val"] >= 0.6 else "red"
+        pos_col = (
+            "green" if m["pos_acc_val"] >= 0.95 else "yellow" if m["pos_acc_val"] >= 0.8 else "red"
+        )
+        neg_col = (
+            "green" if m["neg_acc_val"] >= 0.8 else "yellow" if m["neg_acc_val"] >= 0.5 else "red"
+        )
+        all_col = (
+            "green"
+            if m["overall_acc_val"] >= 0.85
+            else "yellow"
+            if m["overall_acc_val"] >= 0.6
+            else "red"
+        )
         f1_col = "green" if m["f1_val"] >= 0.85 else "yellow" if m["f1_val"] >= 0.6 else "red"
 
         f1_display = (

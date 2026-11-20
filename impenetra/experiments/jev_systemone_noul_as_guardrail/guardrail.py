@@ -38,7 +38,8 @@ DEFAULT_NOUL_INSTRUCTIONS = (
 
 def resolve_typesafe_api_key(explicit_key: str | None = None) -> str:
     """
-    Resolve the TypeSafe.ai API key from explicit parameter or TYPESAFE_API_KEY environment variable.
+    Resolve the TypeSafe.ai API key from explicit parameter or
+    TYPESAFE_API_KEY environment variable.
     """
     key = (explicit_key or os.getenv("TYPESAFE_API_KEY") or "").strip()
 
@@ -168,7 +169,9 @@ class JevSystemOneNoulGuardrail(BaseGuardrail):
                     allowed=True,
                     confidence=round(1.0 - prob, 4),
                     category="",
-                    details=f"Passed Jev SystemOne guardrail: {DEFAULT_ACCEPTANCE.format(prompt=text)}",
+                    details=(
+                        f"Passed Jev SystemOne guardrail: {DEFAULT_ACCEPTANCE.format(prompt=text)}"
+                    ),
                     latency_ms=elapsed,
                     llm_judge_layer_reached=0,
                 )

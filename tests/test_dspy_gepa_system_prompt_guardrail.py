@@ -248,7 +248,8 @@ def test_clinc150_train_split_used_for_gepa_training():
     samples = data["samples"]
 
     clinc_samples = [
-        s for s in samples
+        s
+        for s in samples
         if s.get("source") in ("clinc150_on_charter", "clinc150_off_charter")
         or s.get("category") in ("clinc150_on_charter", "clinc150_off_charter")
     ]
@@ -282,8 +283,7 @@ def test_split_train_val_samples_coverage_and_ratios():
 
     # Test that default val_ratio=0.10 yields >= 10% validation size on realistic data
     larger_mock = [
-        {"prompt": f"p{i}", "category": "c", "subcategory": f"s{i // 10}"}
-        for i in range(100)
+        {"prompt": f"p{i}", "category": "c", "subcategory": f"s{i // 10}"} for i in range(100)
     ]
     train_l, val_l = split_train_val_samples(larger_mock, val_ratio=0.10, seed=42)
     assert len(val_l) >= 0.10 * len(larger_mock)
@@ -476,9 +476,7 @@ def test_resolve_trainer_model():
 def test_optimize_prompt_gepa_missing_gemini_api_key_raises(monkeypatch):
     """Verify ValueError is raised when GEMINI_API_KEY is not set (no fallbacks)."""
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    with pytest.raises(
-        ValueError, match="GEMINI_API_KEY environment variable is required"
-    ):
+    with pytest.raises(ValueError, match="GEMINI_API_KEY environment variable is required"):
         optimize_prompt_gepa(
             train_examples=[],
             api_base="https://mock/v1",
