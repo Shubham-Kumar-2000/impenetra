@@ -751,6 +751,50 @@ def build_dspy_examples(
     return examples
 
 
+def split_train_val_samples(
+    samples: List[Dict[str, Any]],
+    val_ratio: float = 0.10,
+    seed: int = 42,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Split sampled prompts into trainset and a validation set of at least 10%.
+    Ensures GEPA tracks Pareto scores on a balanced, representative holdout distribution
+    while preserving a large training set for reflective mutation.
+    If val_ratio <= 0.0, returns (list(samples), []) to disable the validation split.
+
+    Strategy:
+    - Group samples by (category, subcategory).
+    - For subcategories with 1 item (singletons): include in valset for complete
+      downstream representation, and in trainset for reflective mutation learning.
+    - For subcategories with >= 2 items: allocate max(1, round(len * val_ratio))
+      items to valset, and the rest to trainset.
+    """
+    if val_ratio <= 0.0:
+        return list(samples), []
+
+    rng = random.Random(seed)
+    by_subcat: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    for s in samples:
+        key = (s["category"], s.get("subcategory", ""))
+        by_subcat.setdefault(key, []).append(s)
+
+    train_samples: List[Dict[str, Any]] = []
+    val_samples: List[Dict[str, Any]] = []
+
+    for _key, items in sorted(by_subcat.items()):
+        items_copy = list(items)
+        rng.shuffle(items_copy)
+        if len(items_copy) == 1:
+            val_samples.append(items_copy[0])
+            train_samples.append(items_copy[0])
+        else:
+            k_val = max(1, int(round(len(items_copy) * val_ratio)))
+            val_samples.extend(items_copy[:k_val])
+            train_samples.extend(items_copy[k_val:])
+
+    return train_samples, val_samples
+
+
 def optimize_prompt_gepa(
     train_examples: List[dspy.Example],
     api_base: str,
@@ -761,6 +805,8 @@ def optimize_prompt_gepa(
     reflection_minibatch_size: int = 1,
     prompt_max_tokens: int = 4096,
     log_dir: str | None = None,
+    val_examples: List[dspy.Example] | None = None,
+    resume: bool = False,
 ) -> str:
     """
     Run DSPy GEPA reflective prompt optimization on the expanded training set.
@@ -771,8 +817,12 @@ def optimize_prompt_gepa(
     reflection_minibatch_size=1 (default) keeps each reflection LM call to a single
     example+feedback.
 
-    log_dir: if set, GEPA saves a checkpoint (gepa_state.bin) after every iteration.
-    Re-running with the same log_dir resumes from the last checkpoint automatically.
+    log_dir: if set, GEPA saves checkpoints and logs in this directory.
+    resume: if False (default), ignores and clears any cached state or checkpoint from prior runs
+    to guarantee a fresh start. If True, resumes from an existing checkpoint.
+
+    val_examples: validation set for Pareto score tracking. If provided, GEPA tracks Pareto
+    scores on this compact set instead of evaluating all candidates on the entire trainset.
     """
     clean_base = api_base.rstrip("/")
     if not clean_base.endswith("/v1"):
@@ -788,26 +838,56 @@ def optimize_prompt_gepa(
 
     resolved_trainer = _resolve_trainer_model(trainer_model)
 
+    # Clean any stale checkpoint/state from prior runs if resume is False
+    if log_dir:
+        log_path = Path(log_dir)
+        if not resume and log_path.exists():
+            stale_files = [
+                "gepa_state.bin",
+                "iterations.jsonl",
+                "summary.json",
+                "proposer_inputs.jsonl",
+                "config.json",
+                "cost_summary.txt",
+            ]
+            cleared = []
+            for fname in stale_files:
+                fpath = log_path / fname
+                if fpath.exists():
+                    fpath.unlink()
+                    cleared.append(fname)
+            if cleared:
+                console.print(
+                    f"[yellow]Ignored cached state from previous run. "
+                    f"Cleared {len(cleared)} stale checkpoint files from {log_dir} "
+                    f"to start afresh.[/yellow]"
+                )
+
+    # Disable LM caching to ensure calls are always fresh and unmemoized
     task_lm = dspy.LM(
         f"openai/{model_name}",
         api_base=clean_base,
         api_key=os.getenv("OPENAI_API_KEY", "none"),
         temperature=0.0,
         max_tokens=128,
+        cache=False,
     )
     reflection_lm = dspy.LM(
         resolved_trainer,
         api_key=key.strip(),
         temperature=0.7,
         max_tokens=prompt_max_tokens,
+        cache=False,
     )
-    dspy.configure(lm=task_lm)
+    dspy.configure(lm=task_lm, cache=False)
 
     student = dspy.Predict(FoodSafetyJudge)
 
+    val_msg = f", valset={len(val_examples)}" if val_examples else " (trainset as valset)"
     console.print(
         f"[bold cyan]Starting DSPy GEPA optimizer "
         f"(trainer={resolved_trainer}, budget={auto_budget}, "
+        f"trainset={len(train_examples)}{val_msg}, "
         f"reflection_minibatch={reflection_minibatch_size}, "
         f"reflection_max_tokens={prompt_max_tokens})...[/bold cyan]"
     )
@@ -821,7 +901,11 @@ def optimize_prompt_gepa(
         log_dir=log_dir,
     )
 
-    compiled_program = optimizer.compile(student, trainset=train_examples)
+    compile_kwargs: Dict[str, Any] = {"trainset": train_examples}
+    if val_examples is not None and len(val_examples) > 0:
+        compile_kwargs["valset"] = val_examples
+
+    compiled_program = optimizer.compile(student, **compile_kwargs)
 
     # Extract optimized instruction from the compiled program.
     # Try the standard path first; fall back to direct .signature access.
@@ -928,7 +1012,7 @@ def main():
         "--max-samples",
         type=int,
         default=100,
-        help="Max sample cap per probe subcategory (min of 80% or max-samples, default: 100)",
+        help="Max sample cap per probe subcategory (min of 80%% or max-samples, default: 100)",
     )
     parser.add_argument(
         "--min-samples",
@@ -948,6 +1032,21 @@ def main():
         default="light",
         choices=["light", "medium", "heavy"],
         help="GEPA auto budget (default: light)",
+    )
+    parser.add_argument(
+        "--val-ratio",
+        type=float,
+        default=0.10,
+        help="Ratio of stratified samples for validation Pareto tracking (default: 0.10, min 10%%)",
+    )
+    parser.add_argument(
+        "--no-valset",
+        action="store_true",
+        default=False,
+        help=(
+            "Disable validation set altogether and use the training set "
+            "as the validation set for Pareto tracking"
+        ),
     )
     parser.add_argument(
         "--reflection-minibatch-size",
@@ -980,7 +1079,13 @@ def main():
         "--log-dir",
         type=str,
         default=None,
-        help="Directory to save GEPA checkpoints and state (enables resuming runs)",
+        help="Directory to save GEPA checkpoints and state (starts fresh by default)",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        default=False,
+        help="Resume GEPA run from previous checkpoint in --log-dir (default: False)",
     )
     parser.add_argument(
         "--out",
@@ -1068,13 +1173,35 @@ def main():
         f"Max Prompt Length: [green]{max_prompt_chars:,} chars[/green]"
     )
 
-    # 5. Build DSPy dataset
-    train_examples = build_dspy_examples(samples, max_prompt_chars=max_prompt_chars)
+    # 5. Split into trainset and compact valset for GEPA Pareto tracking
+    use_valset = (not args.no_valset) and (args.val_ratio > 0.0)
+    if use_valset:
+        train_samples, val_samples = split_train_val_samples(
+            samples, val_ratio=args.val_ratio, seed=args.seed
+        )
+        console.print(
+            f"Dataset Split: [bold green]{len(train_samples):,} training examples[/bold green] "
+            f"[dim](reflection mutations)[/dim] | "
+            f"[bold cyan]{len(val_samples):,} validation examples[/bold cyan] "
+            f"[dim](Pareto tracking)[/dim]"
+        )
+        val_examples = build_dspy_examples(val_samples, max_prompt_chars=max_prompt_chars)
+    else:
+        train_samples = samples
+        val_samples = []
+        val_examples = None
+        console.print(
+            f"Dataset Split: [bold green]{len(train_samples):,} training examples[/bold green] "
+            f"[dim](validation set disabled: using trainset as valset for Pareto tracking)[/dim]"
+        )
+
+    train_examples = build_dspy_examples(train_samples, max_prompt_chars=max_prompt_chars)
 
     # 6. Run DSPy GEPA optimization
     try:
         optimized_prompt = optimize_prompt_gepa(
             train_examples=train_examples,
+            val_examples=val_examples,
             api_base=api_base,
             model_name=student_model_name,
             trainer_model=trainer_model,
@@ -1083,6 +1210,7 @@ def main():
             reflection_minibatch_size=args.reflection_minibatch_size,
             prompt_max_tokens=prompt_max_tokens,
             log_dir=args.log_dir,
+            resume=args.resume,
         )
     except Exception as e:
         console.print(f"[bold red]❌ GEPA Optimization failed:[/bold red] {e}")

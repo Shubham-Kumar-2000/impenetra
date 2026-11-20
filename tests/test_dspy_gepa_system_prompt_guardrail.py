@@ -1,5 +1,6 @@
 """Unit tests for DSPyGEPASystemPromptGuardrail and GEPA min(80%, 100) sampling."""
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -25,10 +26,12 @@ from impenetra.experiments.dspy_gepa_system_prompt_as_guardrail.train_prompt imp
     auto_detect_model_context_length,
     build_dspy_examples,
     evaluate_guardrail_verdict_gepa,
+    main,
     optimize_prompt_gepa,
     read_sampled_dataset_csv,
     resolve_token_and_prompt_budgets,
     sample_training_data,
+    split_train_val_samples,
 )
 
 # ---------------------------------------------------------------------------
@@ -236,6 +239,49 @@ def test_read_sampled_dataset_csv_min_80_percent_and_80_cap():
     assert len(sampled_capped) == 5
 
 
+def test_split_train_val_samples_coverage_and_ratios():
+    """Verify train/val split provides full subcategory coverage and >= 10% validation."""
+    mock_samples = [
+        {"prompt": "p1", "category": "cat1", "subcategory": "sub1"},
+        {"prompt": "p2", "category": "cat1", "subcategory": "sub1"},
+        {"prompt": "p3", "category": "cat1", "subcategory": "sub1"},
+        {"prompt": "p4", "category": "cat2", "subcategory": "singleton"},
+    ]
+    train_s, val_s = split_train_val_samples(mock_samples, val_ratio=0.33, seed=42)
+
+    # Sub1 has 3 items: 1 in val, 2 in train
+    assert len(val_s) == 2  # 1 from sub1, 1 singleton
+    assert len(train_s) == 3  # 2 from sub1, 1 singleton
+    # Singleton appears in both val (for coverage) and train (for reflection)
+    singleton_prompts = [s["prompt"] for s in mock_samples if s["subcategory"] == "singleton"]
+    assert any(s["prompt"] == singleton_prompts[0] for s in val_s)
+    assert any(s["prompt"] == singleton_prompts[0] for s in train_s)
+
+    # Test that default val_ratio=0.10 yields >= 10% validation size on realistic data
+    larger_mock = [
+        {"prompt": f"p{i}", "category": "c", "subcategory": f"s{i // 10}"}
+        for i in range(100)
+    ]
+    train_l, val_l = split_train_val_samples(larger_mock, val_ratio=0.10, seed=42)
+    assert len(val_l) >= 0.10 * len(larger_mock)
+
+
+def test_split_train_val_samples_zero_val_ratio():
+    """Verify split_train_val_samples returns full trainset and empty val when val_ratio <= 0."""
+    mock_samples = [
+        {"prompt": "p1", "category": "cat1", "subcategory": "sub1"},
+        {"prompt": "p2", "category": "cat1", "subcategory": "sub2"},
+    ]
+    train_s, val_s = split_train_val_samples(mock_samples, val_ratio=0.0)
+    assert len(train_s) == 2
+    assert len(val_s) == 0
+    assert train_s == mock_samples
+
+    train_neg, val_neg = split_train_val_samples(mock_samples, val_ratio=-0.1)
+    assert len(train_neg) == 2
+    assert len(val_neg) == 0
+
+
 # ---------------------------------------------------------------------------
 # 6. GEPA Reflective Metric Tests
 # ---------------------------------------------------------------------------
@@ -438,8 +484,10 @@ def test_optimize_prompt_gepa_configures_dual_models():
     with patch("dspy.LM", side_effect=mock_lm_init):
         with patch("dspy.GEPA", return_value=mock_gepa_instance):
             with patch("dspy.configure"):
+                mock_val = [MagicMock()]
                 result = optimize_prompt_gepa(
                     train_examples=[],
+                    val_examples=mock_val,
                     api_base="https://mock/v1",
                     model_name="Meta-Llama-3.1-8B-Instruct",
                     trainer_model="gemini/gemini-3.8-flash",
@@ -450,12 +498,18 @@ def test_optimize_prompt_gepa_configures_dual_models():
                 )
 
     assert result == "Optimized Gemini Judge Prompt"
+    mock_gepa_instance.compile.assert_called_once_with(
+        pytest.approx(mock_gepa_instance.compile.call_args[0][0]),
+        trainset=[],
+        valset=mock_val,
+    )
     assert len(created_lms) == 2
     # Student model (task_lm)
     student_call = created_lms[0]
     assert student_call[0] == "openai/Meta-Llama-3.1-8B-Instruct"
     assert student_call[1]["api_base"] == "https://mock/v1"
     assert student_call[1]["temperature"] == 0.0
+    assert student_call[1]["cache"] is False
 
     # Trainer model (reflection_lm)
     trainer_call = created_lms[1]
@@ -463,3 +517,83 @@ def test_optimize_prompt_gepa_configures_dual_models():
     assert trainer_call[1]["api_key"] == "mock-gemini-key-12345"
     assert trainer_call[1]["temperature"] == 0.7
     assert trainer_call[1]["max_tokens"] == 2048
+    assert trainer_call[1]["cache"] is False
+
+
+def test_optimize_prompt_gepa_clears_stale_checkpoint_when_not_resuming(tmp_path):
+    """Verify that stale checkpoints are purged on a fresh run to ignore cached state."""
+    log_dir = tmp_path / "gepa_logs"
+    log_dir.mkdir(parents=True)
+    stale_state = log_dir / "gepa_state.bin"
+    stale_state.write_text("dummy-old-checkpoint-state")
+    stale_summary = log_dir / "summary.json"
+    stale_summary.write_text("{}")
+
+    mock_compiled = MagicMock()
+    mock_compiled.predictors.return_value = [
+        MagicMock(signature=MagicMock(instructions="Fresh Judge Prompt"))
+    ]
+    mock_gepa_instance = MagicMock()
+    mock_gepa_instance.compile.return_value = mock_compiled
+
+    with patch("dspy.LM", return_value=MagicMock()):
+        with patch("dspy.GEPA", return_value=mock_gepa_instance):
+            with patch("dspy.configure"):
+                optimize_prompt_gepa(
+                    train_examples=[],
+                    api_base="https://mock/v1",
+                    model_name="test-model",
+                    gemini_api_key="mock-key",
+                    log_dir=str(log_dir),
+                    resume=False,
+                )
+
+    # State file must have been deleted to start afresh
+    assert not stale_state.exists()
+    assert not stale_summary.exists()
+
+
+def test_optimize_prompt_gepa_omits_valset_when_none():
+    """Verify optimizer.compile is called without valset when val_examples is None or empty."""
+    mock_compiled = MagicMock()
+    mock_compiled.predictors.return_value = [
+        MagicMock(signature=MagicMock(instructions="Optimized Prompt"))
+    ]
+    mock_gepa_instance = MagicMock()
+    mock_gepa_instance.compile.return_value = mock_compiled
+
+    with patch("dspy.LM", return_value=MagicMock()):
+        with patch("dspy.GEPA", return_value=mock_gepa_instance):
+            with patch("dspy.configure"):
+                mock_train = [MagicMock()]
+                optimize_prompt_gepa(
+                    train_examples=mock_train,
+                    val_examples=None,
+                    api_base="https://mock/v1",
+                    model_name="test-model",
+                    gemini_api_key="mock-key",
+                )
+
+    # Verify compile was called with only trainset, NOT valset
+    mock_gepa_instance.compile.assert_called_once_with(
+        pytest.approx(mock_gepa_instance.compile.call_args[0][0]),
+        trainset=mock_train,
+    )
+    assert "valset" not in mock_gepa_instance.compile.call_args[1]
+
+
+def test_cli_dry_run_with_no_valset(tmp_path, monkeypatch):
+    """Verify CLI accepts --no-valset flag and runs successfully in dry-run mode."""
+    out_file = tmp_path / "prompt_out.txt"
+    test_args = [
+        "train_prompt.py",
+        "--dry-run",
+        "--no-valset",
+        "--out",
+        str(out_file),
+    ]
+    monkeypatch.setattr(sys, "argv", test_args)
+    exit_code = main()
+    assert exit_code == 0
+    assert out_file.exists()
+    assert len(out_file.read_text()) > 0
