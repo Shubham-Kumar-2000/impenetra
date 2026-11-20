@@ -11,6 +11,7 @@ from dspy.teleprompt.gepa.gepa_utils import ScoreWithFeedback
 from fastapi.testclient import TestClient
 
 from impenetra.core.guardrail import DEFAULT_ACCEPTANCE, DEFAULT_REFUSAL, GuardrailResult
+from impenetra.datasets import load_guardrail_dataset
 from impenetra.experiments.dspy_gepa_system_prompt_as_guardrail.guardrail import (
     DEFAULT_MODEL_NAME,
     JUDGE_SYSTEM_PROMPT,
@@ -191,6 +192,8 @@ def test_sample_training_data_gepa_80_percent_and_100_cap():
         "xstest_safe",
         "on_charter",
         "infused_on_charter",
+        "clinc150_on_charter",
+        "clinc150_off_charter",
     }
     assert set(summary.keys()) == expected_categories
     assert len(stats) >= 60
@@ -237,6 +240,26 @@ def test_read_sampled_dataset_csv_min_80_percent_and_80_cap():
     # Verify max cap bounds at 80 rows
     sampled_capped = read_sampled_dataset_csv("xstest", ratio=1.0, max_rows=5, seed=42)
     assert len(sampled_capped) == 5
+
+
+def test_clinc150_train_split_used_for_gepa_training():
+    """Verify DSPy GEPA samples from clinc150 train split."""
+    data = sample_training_data(ratio=0.80, seed=42)
+    samples = data["samples"]
+
+    clinc_samples = [
+        s for s in samples
+        if s.get("source") in ("clinc150_on_charter", "clinc150_off_charter")
+        or s.get("category") in ("clinc150_on_charter", "clinc150_off_charter")
+    ]
+    assert len(clinc_samples) > 0
+
+    clinc_prompts = {s["prompt"] for s in clinc_samples}
+
+    # Verify that every prompt in clinc_samples originates from the train split
+    train_rows = load_guardrail_dataset("clinc150", split="train")
+    train_prompts = {r["prompt"] for r in train_rows}
+    assert clinc_prompts.issubset(train_prompts)
 
 
 def test_split_train_val_samples_coverage_and_ratios():

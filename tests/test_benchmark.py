@@ -95,6 +95,7 @@ def test_run_benchmark_end_to_end(tmp_path: Path):
         assert "infused_off_charter" in ds_summary
         assert "intent_manipulation" in ds_summary
         assert "xstest" in ds_summary
+        assert "clinc150" in ds_summary
         assert ds_summary["on_charter"]["total"] == 12
         assert ds_summary["infused_on_charter"]["total"] == 12
         assert ds_summary["adversarial"]["total"] == 15
@@ -102,6 +103,7 @@ def test_run_benchmark_end_to_end(tmp_path: Path):
         assert ds_summary["infused_off_charter"]["total"] == 10
         assert ds_summary["intent_manipulation"]["total"] == 15
         assert ds_summary["xstest"]["total"] == 32
+        assert ds_summary["clinc150"]["total"] == 5500
 
         # Verify positive and negative categories
         assert res["summary"]["positive_cases"]["accuracy"] == 1.0
@@ -109,19 +111,21 @@ def test_run_benchmark_end_to_end(tmp_path: Path):
         assert res["summary"]["overall"]["accuracy"] == 1.0
 
         # Verify llm_judge_layer_reached in summary and attempts
-        assert res["llm_judge_layer_reached"] == 15 + 8 + 10 + 15 + 16
-        assert res["summary"]["overall"]["llm_judge_layer_reached"] == 15 + 8 + 10 + 15 + 16
+        expected_neg = 15 + 8 + 10 + 15 + 16 + 4930
+        assert res["llm_judge_layer_reached"] == expected_neg
+        assert res["summary"]["overall"]["llm_judge_layer_reached"] == expected_neg
         assert res["summary"]["datasets"]["adversarial"]["llm_judge_layer_reached"] == 15
         assert res["summary"]["datasets"]["xstest"]["llm_judge_layer_reached"] == 16
+        assert res["summary"]["datasets"]["clinc150"]["llm_judge_layer_reached"] == 4930
         assert res["summary"]["datasets"]["on_charter"]["llm_judge_layer_reached"] == 0
 
         with open(out_file) as f:
             saved_data = json.load(f)
             assert saved_data["experiment"] == "mock_experiment"
             assert "attempts" in saved_data
-            assert len(saved_data["attempts"]) == 12 + 12 + 15 + 8 + 10 + 15 + 32
+            assert len(saved_data["attempts"]) == 12 + 12 + 15 + 8 + 10 + 15 + 32 + 5500
             assert "llm_judge_layer_reached" in saved_data["attempts"][0]
-            assert saved_data["llm_judge_layer_reached"] == 15 + 8 + 10 + 15 + 16
+            assert saved_data["llm_judge_layer_reached"] == expected_neg
 
 
 def test_run_benchmark_subset_datasets(tmp_path: Path):

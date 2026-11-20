@@ -157,7 +157,8 @@ def run_benchmark(
     dataset_summaries: dict[str, Any] = {}
 
     for ds_name in dataset_names:
-        rows = load_guardrail_dataset(ds_name)
+        split_arg = "test" if ds_name == "clinc150" else None
+        rows = load_guardrail_dataset(ds_name, split=split_arg)
         total_rows = len(rows)
         print(f"\n  Running Dataset '{ds_name}' ({total_rows} prompts)...")
 

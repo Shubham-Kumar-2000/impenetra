@@ -23,15 +23,15 @@ def test_registry_has_expected_datasets():
     assert "infused_off_charter" in DATASET_REGISTRY
     assert "intent_manipulation" in DATASET_REGISTRY
     assert "xstest" in DATASET_REGISTRY
+    assert "clinc150" in DATASET_REGISTRY
 
     # Obsolete datasets must be removed
-    assert "clinc150" not in DATASET_REGISTRY
     assert "toxic_chat" not in DATASET_REGISTRY
 
 
 def test_list_datasets():
     datasets = list_datasets()
-    assert len(datasets) == 7
+    assert len(datasets) == 8
     names = [d.name for d in datasets]
     assert "on_charter" in names
     assert "infused_on_charter" in names
@@ -40,6 +40,7 @@ def test_list_datasets():
     assert "infused_off_charter" in names
     assert "intent_manipulation" in names
     assert "xstest" in names
+    assert "clinc150" in names
 
 
 def test_get_dataset_info():
@@ -47,6 +48,13 @@ def test_get_dataset_info():
     assert info.name == "on_charter"
     assert info.path.exists()
     assert info.task == "culinary_intent"
+
+    info_clinc = get_dataset_info("clinc150")
+    assert info_clinc.name == "clinc150"
+    assert info_clinc.hf_path == "DeepPavlov/clinc_oos"
+    assert info_clinc.hf_config == "small"
+    assert info_clinc.task == "intent_classification"
+    assert info_clinc.default_split == "test"
 
     info_infused = get_dataset_info("infused_on_charter")
     assert info_infused.name == "infused_on_charter"
@@ -141,6 +149,73 @@ def test_load_xstest_dataset():
     assert all(r["type"] == "negative" for r in neg_rows)
 
 
+def test_load_clinc150_test_split():
+    # Default load uses test split
+    rows = load_guardrail_dataset("clinc150")
+    assert len(rows) == 5500
+    assert all(r["dataset"] == "clinc150" for r in rows)
+
+    pos_rows = [r for r in rows if not r["expected_blocked"]]
+    neg_rows = [r for r in rows if r["expected_blocked"]]
+    # 19 in-charter intents * 30 samples = 570 positive rows
+    assert len(pos_rows) == 570
+    assert len(neg_rows) == 4930
+
+    assert all(r["type"] == "positive" for r in pos_rows)
+    assert all(r["type"] == "negative" for r in neg_rows)
+
+    # Verify that in-charter intents are present in positive rows
+    pos_intents = {r["subtype"] for r in pos_rows}
+    expected_in_charter = {
+        "recipe",
+        "ingredients_list",
+        "ingredient_substitution",
+        "cook_time",
+        "calories",
+        "nutrition_info",
+        "food_last",
+        "meal_suggestion",
+        "greeting",
+        "goodbye",
+        "thank_you",
+        "yes",
+        "no",
+        "cancel",
+        "repeat",
+        "what_can_i_ask_you",
+        "maybe",
+        "are_you_a_bot",
+        "what_is_your_name",
+    }
+    assert pos_intents == expected_in_charter
+
+
+def test_load_clinc150_train_split():
+    rows = load_guardrail_dataset("clinc150", split="train")
+    assert len(rows) == 7600
+    assert all(r["dataset"] == "clinc150" for r in rows)
+
+    pos_rows = [r for r in rows if not r["expected_blocked"]]
+    neg_rows = [r for r in rows if r["expected_blocked"]]
+    # 19 in-charter intents * 50 samples = 950 positive rows
+    assert len(pos_rows) == 950
+    assert len(neg_rows) == 6650
+
+    assert all(r["type"] == "positive" for r in pos_rows)
+    assert all(r["type"] == "negative" for r in neg_rows)
+
+
+def test_clinc150_off_charter_utilities():
+    rows = load_guardrail_dataset("clinc150", split="test")
+    # Off-charter utilities specified by user must be negative / expected_blocked=True
+    off_charter_utilities = {"measurement_conversion", "timer", "shopping_list", "shopping_list_update"}
+    for util in off_charter_utilities:
+        util_rows = [r for r in rows if r["subtype"] == util]
+        assert len(util_rows) == 30
+        assert all(r["expected_blocked"] is True for r in util_rows)
+        assert all(r["type"] == "negative" for r in util_rows)
+
+
 def test_load_all_datasets():
     all_data = load_all_datasets()
     assert set(all_data.keys()) == {
@@ -151,6 +226,7 @@ def test_load_all_datasets():
         "infused_off_charter",
         "intent_manipulation",
         "xstest",
+        "clinc150",
     }
     assert len(all_data["on_charter"]) == 12
     assert len(all_data["infused_on_charter"]) == 12
@@ -159,6 +235,7 @@ def test_load_all_datasets():
     assert len(all_data["infused_off_charter"]) == 10
     assert len(all_data["intent_manipulation"]) == 15
     assert len(all_data["xstest"]) == 32
+    assert len(all_data["clinc150"]) == 5500
 
 
 def test_unknown_dataset_raises():
@@ -259,6 +336,7 @@ def test_datasets_array_and_loader():
         "infused_off_charter",
         "intent_manipulation",
         "xstest",
+        "clinc150",
     ]
 
     # Verify that load_guardrail_dataset loads every dataset from the array

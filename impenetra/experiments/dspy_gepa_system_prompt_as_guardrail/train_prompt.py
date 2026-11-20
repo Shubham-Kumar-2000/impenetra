@@ -105,12 +105,13 @@ def read_sampled_dataset_csv(
     ratio: float = 0.80,
     max_rows: int = 80,
     seed: int = 42,
+    split: str | None = None,
 ) -> List[Dict[str, Any]]:
     """
-    Read benchmark dataset from CSV and randomly sample min(80%, 80) rows for training.
+    Read benchmark dataset and randomly sample min(80%, 80) rows for training.
     Preserves benchmark holdouts for evaluation and bounds training sample size.
     """
-    rows = load_guardrail_dataset(dataset_name)
+    rows = load_guardrail_dataset(dataset_name, split=split)
     if not rows:
         return []
     total = len(rows)
@@ -446,6 +447,34 @@ def load_training_subcategories(seed: int = 42) -> Dict[Tuple[str, str], Dict[st
                 "positive",
                 is_csv=True,
             )
+
+    # 14. CLINC150 Intent Classification (train split: 19 in-charter vs 132+oos off-charter)
+    clinc_train_rows = load_guardrail_dataset("clinc150", split="train")
+    for row in clinc_train_rows:
+        prompt = (row.get("prompt") or "").strip()
+        subtype = (row.get("subtype") or "").strip()
+        is_blocked = row.get("expected_blocked", True)
+        if prompt and subtype:
+            if not is_blocked:
+                register(
+                    "clinc150_on_charter",
+                    subtype,
+                    [prompt],
+                    False,
+                    "BENIGN",
+                    "positive",
+                    is_csv=False,
+                )
+            else:
+                register(
+                    "clinc150_off_charter",
+                    subtype,
+                    [prompt],
+                    True,
+                    "VIOLATION: off_charter",
+                    "negative",
+                    is_csv=False,
+                )
 
     # Clean and sort prompts in each subcategory
     for data in subcats.values():
