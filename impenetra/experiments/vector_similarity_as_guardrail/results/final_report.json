@@ -1,0 +1,92 @@
+{
+  "experiment": "vector_similarity_as_guardrail",
+  "timestamp": "20261121_004157",
+  "results_directory": "impenetra/experiments/vector_similarity_as_guardrail/results",
+  "accuracy": {
+    "overall_accuracy": 0.9107,
+    "overall_accuracy_pct": "91.1%",
+    "precision": 0.9259,
+    "precision_pct": "92.6%",
+    "recall": 0.9793,
+    "recall_pct": "97.9%",
+    "sensitivity": 0.9793,
+    "sensitivity_pct": "97.9%",
+    "f1_score": 0.9519,
+    "f1_score_pct": "95.2%",
+    "fpr": 0.7213,
+    "fpr_pct": "72.1%",
+    "positive": {
+      "description": "Prompts that should NOT be blocked (benign / on-charter)",
+      "total": 610,
+      "allowed": 170,
+      "blocked": 440,
+      "accuracy": 0.2787,
+      "accuracy_pct": "27.9%",
+      "llm_judge_layer_reached": 0
+    },
+    "negative": {
+      "description": "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)",
+      "total": 5614,
+      "blocked": 5498,
+      "allowed": 116,
+      "accuracy": 0.9793,
+      "accuracy_pct": "97.9%",
+      "llm_judge_layer_reached": 0
+    }
+  },
+  "confusion_matrix": {
+    "tp": 5498,
+    "fn": 116,
+    "fp": 440,
+    "tn": 170
+  },
+  "guardrail_latency": {
+    "positive_cases_p95_ms": 13.935,
+    "positive_cases_mean_ms": 10.386,
+    "negative_cases_p95_ms": 56.421,
+    "negative_cases_mean_ms": 12.306,
+    "overall_p95_ms": 56.421,
+    "overall_mean_ms": 11.35,
+    "guard_mean_ms": 11.35
+  },
+  "overall_latency": {
+    "positive_cases_p95_ms": 308.541,
+    "positive_cases_mean_ms": 264.593,
+    "negative_cases_p95_ms": 303.594,
+    "negative_cases_mean_ms": 249.172,
+    "overall_p95_ms": 308.541,
+    "overall_mean_ms": 256.88
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 481.73,
+    "peak_rss_mb": 879.61,
+    "delta_rss_mb": 397.88,
+    "vms_mb": 480705.06,
+    "positive": {
+      "peak_rss_mb": 879.61,
+      "delta_rss_mb": 397.88
+    },
+    "negative": {
+      "peak_rss_mb": 481.73,
+      "delta_rss_mb": 0.0
+    }
+  },
+  "error_metrics": {
+    "total_calls": 6224,
+    "successful_calls": 6224,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "failure_rate_pct": "0.00%",
+    "errors_by_type": {}
+  },
+  "llm_judge_layer_reached": 0,
+  "source_files": {
+    "garak_report": "20261121_003818_vectorsim.report.jsonl",
+    "bench_file": "20261121_003818_bench.json",
+    "latest_run_report": "20261121_003818_garak_report.json",
+    "run_reports": [
+      "20261121_003818_garak_report.json",
+      "20261121_003818_bench_report.json"
+    ]
+  }
+}

@@ -36,6 +36,7 @@ EXPERIMENTS = [
     ("dspy_gepa_system_prompt_as_guardrail", "DSPy GEPA Prompt\n(Evolutionary Judge)"),
     ("jev_systemone_noul_as_guardrail", "Jev SystemOne Noul\n(TypeSafe.ai)"),
     ("jev_systemone_choice_as_guardrail", "Jev SystemOne Choice\n(TypeSafe.ai)"),
+    ("vector_similarity_as_guardrail", "Vector Similarity\n(Cosine + Qdrant)"),
 ]
 
 

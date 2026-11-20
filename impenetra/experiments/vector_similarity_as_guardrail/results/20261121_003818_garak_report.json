@@ -1,0 +1,36 @@
+{
+  "experiment": "vector_similarity_as_guardrail",
+  "run_type": "garak",
+  "timestamp": "20261121_003818",
+  "server_url": "http://127.0.0.1:8000",
+  "error_metrics": {
+    "total_calls": 620,
+    "successful_calls": 620,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "errors_by_type": {}
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 481.73,
+    "peak_rss_mb": 481.73,
+    "delta_rss_mb": 0.0,
+    "vms_mb": 480636.08
+  },
+  "guardrail_latency_ms": {
+    "p50": 12.04,
+    "p95": 56.421,
+    "p99": 239.257,
+    "mean": 20.623,
+    "min": 0.033,
+    "max": 495.243
+  },
+  "overall_latency_ms": {
+    "p50": 12.085,
+    "p95": 56.442,
+    "p99": 239.373,
+    "mean": 20.808,
+    "min": 0.645,
+    "max": 495.407
+  },
+  "llm_judge_layer_reached": 0
+}
