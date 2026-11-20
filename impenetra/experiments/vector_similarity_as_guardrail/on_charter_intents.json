@@ -1,0 +1,177 @@
+{
+  "agent": "food_agent",
+  "qdrant_config": {
+    "url": "http://localhost:6333",
+    "api_key": null,
+    "collection_name": "off_charter_vectors",
+    "timeout": 10.0
+  },
+  "guardrail_config": {
+    "similarity_threshold": 0.95,
+    "token_diff_percent": 0.1,
+    "secured_max_excess_tokens": 5,
+    "min_token_threshold": 3
+  },
+  "intents": [
+    {
+      "intent": "recipe_inquiries",
+      "description": "Step-by-step cooking instructions and meal recipes",
+      "examples": [
+        "what do i need to do to cook a chicken?",
+        "how do i go about cooking a 10lb turkey?",
+        "how do i get started making homemade pizza dough?",
+        "what instructions do i need to bake a cake from scratch?",
+        "how do i make lasagna?",
+        "how do you make pasta?",
+        "how do you prepare omelet?",
+        "how do you prepare taco?",
+        "Could you tell me how to bake whole wheat sourdough bread from scratch?",
+        "Could you suggest a healthy recipe for vegetarian lentil soup?"
+      ]
+    },
+    {
+      "intent": "cooking_time_and_temperature",
+      "description": "Oven bake times, grilling duration, and simmering schedules",
+      "examples": [
+        "how long to grill thick steaks?",
+        "how long does pizza take.",
+        "lasagna takes how long to cook.",
+        "bake time for brownies?",
+        "how many minutes are involved in the preparation of curry?",
+        "what's the preparation time for this dish?",
+        "what is the proper cooking time for this?",
+        "how long do i cook this for?",
+        "How do I properly cook brown rice on a stovetop so it doesn't get soggy?",
+        "What is the best way to roast vegetables in an oven to make them crispy?"
+      ]
+    },
+    {
+      "intent": "calories_and_counts",
+      "description": "Caloric content and calorie counts in foods, drinks, and meals",
+      "examples": [
+        "number of calories in coke.",
+        "what kind of calories do chicken tenders have.",
+        "calorie content of dr pepper.",
+        "what's the calorie content of chicken nuggets?",
+        "how many calories are in hamburgers.",
+        "what is the calorie count for this milkshake?",
+        "how many calories in a medium honeycrisp apple?",
+        "what is the total number of calories in this pizza?",
+        "how many calories are in a burger.",
+        "rolls have how many calories?"
+      ]
+    },
+    {
+      "intent": "nutrition_and_macronutrients",
+      "description": "Nutritional facts, vitamins, minerals, and macronutrients",
+      "examples": [
+        "tell me nutritional info for brocoli?",
+        "tell me nutritional info for lettuce?",
+        "tell me nutritional info for fish?",
+        "tell me nutritional info for burger?",
+        "tell me nutritional info for beans?",
+        "how healthy is blueberrys?",
+        "how healthy is tacos?",
+        "What is the difference in protein content between tempeh and tofu?",
+        "Explain nutritional benefits of chia seeds in breakfast smoothies.",
+        "How many grams of fiber in a cup of cooked black beans?"
+      ]
+    },
+    {
+      "intent": "ingredients_and_shopping_list",
+      "description": "Checklists of ingredients required to prepare dishes",
+      "examples": [
+        "what food do you need to make lasagna?",
+        "what ingredients do you need to make lasagna?",
+        "what ingredients are needed to make lasgana?",
+        "what is needed to make lasagna?",
+        "what is needed to cook lasagna?",
+        "give me a recipe for tacos?",
+        "what ingredients are in tacos?",
+        "tell me what's in tacos?",
+        "what's a good recipe foe tacos?",
+        "Which spices pair best with roasted sweet potatoes?"
+      ]
+    },
+    {
+      "intent": "ingredient_substitutions",
+      "description": "Culinary alternatives, seasoning swaps, and baking replacements",
+      "examples": [
+        "can i swap chili for sloppy joe mix in the recipe?",
+        "can i use sugar instead of salt?",
+        "can i use apples instead of oranges in this recipe?",
+        "can i use skim milk instead of 2% in the recipe?",
+        "is it ok to use bananas instead of oranges in the recipe?",
+        "can i use lettuce instead of rice?",
+        "will peas work instead of carrots?",
+        "is it possible to use baking soda instead of flour?",
+        "What are low-sodium substitutes for soy sauce in stir fry recipes?",
+        "What is a good dairy-free alternative to heavy cream in creamy pasta sauces?"
+      ]
+    },
+    {
+      "intent": "food_freshness_and_safety",
+      "description": "Perishable shelf-life guidelines, spoilage prevention, and refrigeration limits",
+      "examples": [
+        "how soon milk expires?",
+        "when does milk will go bad?",
+        "how many days milk can be preserved?",
+        "what is expire of milk?",
+        "when is the milk date before used?",
+        "when does the jerky expire?",
+        "what is the expiration date for honey?",
+        "when is the egg expired?",
+        "when does the honey expire?",
+        "what is the expiration date for those eg?"
+      ]
+    },
+    {
+      "intent": "meal_and_cuisine_suggestions",
+      "description": "Ideas and suggestions for dinners, lunches, and regional cuisines",
+      "examples": [
+        "what's a good italian meal?",
+        "i'm looking for a meal that's from the asian cuisine?",
+        "i'm feeling like a greek meal and need some suggestions?",
+        "indian cuisine suits me and i'd like a meal suggestion, please?",
+        "what's a good, popular american meal?",
+        "i'd like a meal suggestion from thailand?",
+        "tell me what meal to eat from texas?",
+        "can you give me a meal suggestion from the south?",
+        "i want to try a meal from ireland?",
+        "Give me a 15-minute healthy dinner idea using spinach and eggs."
+      ]
+    },
+    {
+      "intent": "culinary_greetings_and_assistance",
+      "description": "Polite greetings and culinary assistant welcome interactions",
+      "examples": [
+        "what are you feeling today.",
+        "is everything ok today?",
+        "hello, how's your day?",
+        "hey there, how are you today?",
+        "hello, how is it going?",
+        "hi there, how are you doing?",
+        "hey, how are you.",
+        "hey, what's up.",
+        "hello, how are you doing?",
+        "hi, how are you."
+      ]
+    },
+    {
+      "intent": "conversational_courtesy_and_affirmation",
+      "description": "User gratitude, acknowledgments, and conversational courtesy",
+      "examples": [
+        "thank you ever so much for that!.",
+        "you\u2019re the best thanks so much!.",
+        "i am grateful for the help.",
+        "thank you for the heip.",
+        "i apprecaite the help from you.",
+        "thanks that was really helpful.",
+        "thank you for your time and trying to help.",
+        "many thank!",
+        "i appeciate it.",
+        "i would like to thank you ai."
+      ]
+    }
+  ]
+}
