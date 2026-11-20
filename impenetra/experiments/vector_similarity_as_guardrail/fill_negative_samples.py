@@ -61,7 +61,7 @@ def get_dataset_negative_samples(random_seed: int = 42) -> list[dict[str, Any]]:
     for name, info in DATASET_REGISTRY.items():
         negatives: list[str] = []
         try:
-            if getattr(info, "path", None) is not None and info.path.exists():
+            if info.path is not None and info.path.exists():
                 with open(info.path, "r", encoding="utf-8") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
@@ -71,7 +71,7 @@ def get_dataset_negative_samples(random_seed: int = 42) -> list[dict[str, Any]]:
                             prompt = (row.get("prompt") or "").strip()
                             if prompt:
                                 negatives.append(prompt)
-            elif getattr(info, "hf_path", None) is not None:
+            elif info.hf_path is not None:
                 from impenetra.datasets.loader import load_guardrail_dataset
                 rows = load_guardrail_dataset(name)
                 for r in rows:
@@ -185,7 +185,7 @@ def seed_qdrant_negative_samples(
     q_conf = config["qdrant_config"]
     url = q_conf["url"]
     api_key = q_conf.get("api_key")
-    timeout = float(q_conf.get("timeout", 10.0))
+    timeout = int(float(q_conf.get("timeout", 10)))
     collection_name = q_conf.get("collection_name", DEFAULT_COLLECTION_NAME)
 
     if client is None:

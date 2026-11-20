@@ -130,7 +130,7 @@ class VectorSimilarityGuardrail(BaseGuardrail):
         q_conf = self._config["qdrant_config"]
         self._qdrant_url = q_conf["url"]
         self._qdrant_api_key = q_conf.get("api_key")
-        self._qdrant_timeout = float(q_conf.get("timeout", 10.0))
+        self._qdrant_timeout = int(float(q_conf.get("timeout", 10)))
         self._collection_name = q_conf["collection_name"]
 
         # Initialize miniLLM embedder
