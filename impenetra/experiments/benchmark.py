@@ -4,8 +4,7 @@ impenetra/experiments/benchmark.py
 ==================================
 Runs benchmark datasets concurrently (24 parallel requests by default) against
 a running guardrail server, evaluates blocked vs. unblocked status against
-dataset row expectations across 4 case tiers (super_positive, positive,
-negative, super_negative), and writes raw benchmark results.
+dataset row expectations across positive and negative cases, and writes raw benchmark results.
 
 All memory, latency, and error metrics are tracked directly by the server's
 telemetry (/metrics) and recorded separately by run.sh via metrics.py.
@@ -119,25 +118,15 @@ def format_status(case_type: str, expected_blocked: bool, actual_blocked: bool, 
     if not ok:
         return "❌ ERROR"
 
-    if case_type == "super_negative":
-        if actual_blocked:
-            return "🛑 BLOCKED (Super-Negative Defended)"
-        return "🚨 BREACH (Super-Negative Attack Succeeded)"
-
     if case_type == "negative":
         if actual_blocked:
-            return "🛑 BLOCKED (Negative Off-Charter Defended)"
-        return "⚠️  PASSED (Negative Off-Charter Leak)"
+            return "🛑 BLOCKED (Negative Defended)"
+        return "🚨 BREACH (Negative Leak)"
 
-    if case_type == "super_positive":
-        if not actual_blocked:
-            return "✓ ALLOWED (Super-Positive Happy Path)"
-        return "⚠️  BLOCKED (False Refusal on Happy Path)"
-
-    # positive with distractions
+    # positive
     if not actual_blocked:
-        return "✓ ALLOWED (Positive Distraction Allowed)"
-    return "⚠️  BLOCKED (False Refusal on Distraction)"
+        return "✓ ALLOWED (Positive Allowed)"
+    return "⚠️  BLOCKED (False Refusal on Positive)"
 
 
 def run_benchmark(
@@ -168,7 +157,8 @@ def run_benchmark(
     dataset_summaries: dict[str, Any] = {}
 
     for ds_name in dataset_names:
-        rows = load_guardrail_dataset(ds_name)
+        split_arg = "test" if ds_name == "clinc150" else None
+        rows = load_guardrail_dataset(ds_name, split=split_arg)
         total_rows = len(rows)
         print(f"\n  Running Dataset '{ds_name}' ({total_rows} prompts)...")
 
@@ -237,16 +227,9 @@ def run_benchmark(
             "llm_judge_layer_reached": ds_judge_calls,
         }
 
-    # 4-Tier Categorical Breakdowns
-    super_pos_attempts = [a for a in all_attempts if a["type"] == "super_positive"]
-    pos_attempts = [a for a in all_attempts if a["type"] == "positive"]
-    off_charter_attempts = [a for a in all_attempts if a["type"] == "negative"]
-    super_neg_attempts = [a for a in all_attempts if a["type"] == "super_negative"]
-
-    # All positive cases combined (expected_blocked == False)
-    all_pos_attempts = [a for a in all_attempts if not a["expected_blocked"]]
-    # All negative cases combined (expected_blocked == True)
-    all_neg_attempts = [a for a in all_attempts if a["expected_blocked"]]
+    # Categorical Breakdowns: Positive and Negative
+    pos_attempts = [a for a in all_attempts if a["type"] == "positive" or not a["expected_blocked"]]
+    neg_attempts = [a for a in all_attempts if a["type"] == "negative" or a["expected_blocked"]]
 
     # Helper stats
     def calc_stats(attempts_subset: list[dict[str, Any]], expect_blocked: bool) -> dict[str, Any]:
@@ -275,16 +258,11 @@ def run_benchmark(
             "llm_judge_layer_reached": judge_calls,
         }
 
-    super_pos_stats = calc_stats(super_pos_attempts, expect_blocked=False)
-    distracted_pos_stats = calc_stats(pos_attempts, expect_blocked=False)
-    combined_pos_stats = calc_stats(all_pos_attempts, expect_blocked=False)
-
-    off_charter_stats = calc_stats(off_charter_attempts, expect_blocked=True)
-    super_neg_stats = calc_stats(super_neg_attempts, expect_blocked=True)
-    combined_neg_stats = calc_stats(all_neg_attempts, expect_blocked=True)
+    pos_stats = calc_stats(pos_attempts, expect_blocked=False)
+    neg_stats = calc_stats(neg_attempts, expect_blocked=True)
 
     total_all = len(all_attempts)
-    total_correct = combined_pos_stats["allowed"] + combined_neg_stats["blocked"]
+    total_correct = pos_stats["allowed"] + neg_stats["blocked"]
     overall_acc = round(total_correct / total_all, 4) if total_all > 0 else 0.0
     total_judge_calls = sum(1 for a in all_attempts if a.get("llm_judge_layer_reached"))
 
@@ -296,12 +274,8 @@ def run_benchmark(
         "llm_judge_layer_reached": total_judge_calls,
         "summary": {
             "datasets": dataset_summaries,
-            "super_positive_cases": super_pos_stats,
-            "distracted_positive_cases": distracted_pos_stats,
-            "positive_cases": combined_pos_stats,
-            "off_charter_negative_cases": off_charter_stats,
-            "super_negative_cases": super_neg_stats,
-            "negative_cases": combined_neg_stats,
+            "positive_cases": pos_stats,
+            "negative_cases": neg_stats,
             "overall": {
                 "total": total_all,
                 "correct": total_correct,
@@ -310,24 +284,12 @@ def run_benchmark(
             },
         },
         "accuracy": {
-            "positive_cases_total": combined_pos_stats["total"],
-            "positive_cases_allowed": combined_pos_stats["allowed"],
-            "positive_accuracy": combined_pos_stats["accuracy"],
-            "super_positive_total": super_pos_stats["total"],
-            "super_positive_allowed": super_pos_stats["allowed"],
-            "super_positive_accuracy": super_pos_stats["accuracy"],
-            "distracted_positive_total": distracted_pos_stats["total"],
-            "distracted_positive_allowed": distracted_pos_stats["allowed"],
-            "distracted_positive_accuracy": distracted_pos_stats["accuracy"],
-            "negative_cases_total": combined_neg_stats["total"],
-            "negative_cases_blocked": combined_neg_stats["blocked"],
-            "negative_accuracy": combined_neg_stats["accuracy"],
-            "off_charter_total": off_charter_stats["total"],
-            "off_charter_blocked": off_charter_stats["blocked"],
-            "off_charter_block_rate": off_charter_stats["accuracy"],
-            "super_negative_total": super_neg_stats["total"],
-            "super_negative_blocked": super_neg_stats["blocked"],
-            "super_negative_block_rate": super_neg_stats["accuracy"],
+            "positive_cases_total": pos_stats["total"],
+            "positive_cases_allowed": pos_stats["allowed"],
+            "positive_accuracy": pos_stats["accuracy"],
+            "negative_cases_total": neg_stats["total"],
+            "negative_cases_blocked": neg_stats["blocked"],
+            "negative_accuracy": neg_stats["accuracy"],
             "overall_accuracy": overall_acc,
         },
         "attempts": all_attempts,
@@ -339,35 +301,15 @@ def run_benchmark(
         json.dump(bench_results, f, indent=2)
 
     print(f"\n  ✓ Benchmark results saved → {out_file}")
-    sp_pct = f"{super_pos_stats['accuracy'] * 100:.1f}%"
+    cp_pct = f"{pos_stats['accuracy'] * 100:.1f}%"
     print(
-        f"    Super-Positive Accuracy (Pure Culinary):  {sp_pct} "
-        f"({super_pos_stats['allowed']}/{super_pos_stats['total']})"
+        f"    Positive Accuracy (Benign Allowed):       {cp_pct} "
+        f"({pos_stats['allowed']}/{pos_stats['total']})"
     )
-    dp_pct = f"{distracted_pos_stats['accuracy'] * 100:.1f}%"
+    cn_pct = f"{neg_stats['accuracy'] * 100:.1f}%"
     print(
-        f"    Distracted Positive Accuracy:             {dp_pct} "
-        f"({distracted_pos_stats['allowed']}/{distracted_pos_stats['total']})"
-    )
-    cp_pct = f"{combined_pos_stats['accuracy'] * 100:.1f}%"
-    print(
-        f"    Combined Positive (Benign Allowed):       {cp_pct} "
-        f"({combined_pos_stats['allowed']}/{combined_pos_stats['total']})"
-    )
-    oc_pct = f"{off_charter_stats['accuracy'] * 100:.1f}%"
-    print(
-        f"    Off-Charter Defended (Negative Blocked):  {oc_pct} "
-        f"({off_charter_stats['blocked']}/{off_charter_stats['total']})"
-    )
-    sn_pct = f"{super_neg_stats['accuracy'] * 100:.1f}%"
-    print(
-        f"    Super-Negative Defended (Attacks Blocked):{sn_pct} "
-        f"({super_neg_stats['blocked']}/{super_neg_stats['total']})"
-    )
-    cn_pct = f"{combined_neg_stats['accuracy'] * 100:.1f}%"
-    print(
-        f"    Combined Negative (Threats Blocked):      {cn_pct} "
-        f"({combined_neg_stats['blocked']}/{combined_neg_stats['total']})"
+        f"    Negative Defended (Threats Blocked):      {cn_pct} "
+        f"({neg_stats['blocked']}/{neg_stats['total']})"
     )
     print(f"    Overall Benchmark Accuracy:               {overall_acc * 100:.1f}%")
 

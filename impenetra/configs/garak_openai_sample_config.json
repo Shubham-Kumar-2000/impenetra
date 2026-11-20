@@ -4,7 +4,7 @@
     "parallel_requests": 32
   },
   "run": {
-    "soft_probe_prompt_cap": 10
+    "soft_probe_prompt_cap": 20
   },
   "rest": {
     "RestGenerator": {

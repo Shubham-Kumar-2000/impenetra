@@ -30,10 +30,9 @@ class BaseGuardrail(ABC):
         """Check if input text passes the guardrail."""
         ...
 
-    @abstractmethod
     def check_batch(self, texts: list[str]) -> list[GuardrailResult]:
         """Check a batch of texts."""
-        ...
+        return [self.check(t) for t in texts]
 
     @property
     @abstractmethod

@@ -203,40 +203,24 @@ def compile_experiment_results(
     if not garak_report:
         print(f"⚠️  Note: No *_garak_report.json found in {r_dir} (Garak telemetry not present)")
 
-    # 4. Synthesize 4 Categories: super_positive, positive, negative, super_negative
+    # 4. Synthesize 2 Categories: positive and negative
     # Benchmark prompt counts & attempts from benchmark.py
     summary_obj = bench_data.get("summary", {})
     all_bench_attempts = bench_data.get("attempts", [])
 
-    super_pos_attempts = [a for a in all_bench_attempts if a.get("type") == "super_positive"]
     pos_attempts = [
         a
         for a in all_bench_attempts
-        if a.get("type") in ["positive", "super_positive"] or a.get("expected_blocked") is False
+        if a.get("type") == "positive" or a.get("expected_blocked") is False
     ]
-    super_neg_attempts = [a for a in all_bench_attempts if a.get("type") == "super_negative"]
     neg_attempts = [
         a
         for a in all_bench_attempts
-        if a.get("type") in ["negative", "super_negative"] or a.get("expected_blocked") is True
+        if a.get("type") == "negative" or a.get("expected_blocked") is True
     ]
 
-    # Category 1: super_positive (pure culinary happy path from benchmark)
-    super_pos_summary = summary_obj.get("super_positive_cases", {})
-    super_pos_total = super_pos_summary.get("total", len(super_pos_attempts))
-    super_pos_allowed = super_pos_summary.get(
-        "allowed",
-        sum(1 for a in super_pos_attempts if not a.get("blocked") and a.get("ok", True)),
-    )
-    super_pos_blocked = super_pos_total - super_pos_allowed
-    super_pos_acc = super_pos_allowed / super_pos_total if super_pos_total > 0 else 1.0
-    if "llm_judge_layer_reached" in super_pos_summary:
-        super_pos_judge = int(super_pos_summary["llm_judge_layer_reached"])
-    else:
-        super_pos_judge = sum(1 for a in super_pos_attempts if a.get("llm_judge_layer_reached"))
-
-    # Category 2: positive (all on-charter inquiries: super_positive + positive)
-    pos_summary = summary_obj.get("positive_cases", {})
+    # Category 1: positive (all on-charter culinary inquiries)
+    pos_summary = summary_obj.get("positive_cases", summary_obj.get("positive", {}))
     bench_pos_total = pos_summary.get("total", len(pos_attempts))
     bench_pos_allowed = pos_summary.get(
         "allowed",
@@ -255,22 +239,8 @@ def compile_experiment_results(
     pos_acc = allowed_pos / total_pos if total_pos > 0 else 1.0
     total_pos_judge = bench_pos_judge
 
-    # Category 4: super_negative (benchmark straight-away attacks; Garak excluded)
-    super_neg_summary = summary_obj.get("super_negative_cases", {})
-    super_neg_total = super_neg_summary.get("total", len(super_neg_attempts))
-    super_neg_blocked = super_neg_summary.get(
-        "blocked",
-        sum(1 for a in super_neg_attempts if a.get("blocked")),
-    )
-    super_neg_allowed = super_neg_total - super_neg_blocked
-    super_neg_acc = super_neg_blocked / super_neg_total if super_neg_total > 0 else 0.0
-    if "llm_judge_layer_reached" in super_neg_summary:
-        super_neg_judge = int(super_neg_summary["llm_judge_layer_reached"])
-    else:
-        super_neg_judge = sum(1 for a in super_neg_attempts if a.get("llm_judge_layer_reached"))
-
-    # Category 3: negative (negative + super_negative + garak_probes)
-    neg_summary = summary_obj.get("negative_cases", {})
+    # Category 2: negative (all threats combined: negative + garak_probes)
+    neg_summary = summary_obj.get("negative_cases", summary_obj.get("negative", {}))
     bench_neg_total = neg_summary.get("total", len(neg_attempts))
     bench_neg_blocked = neg_summary.get(
         "blocked",
@@ -295,19 +265,28 @@ def compile_experiment_results(
     total_correct = allowed_pos + blocked_neg
     overall_acc = total_correct / total_all if total_all > 0 else 0.0
 
-    # 5. Latency metrics across the 4 categories
+    # Classification metrics for threat detection:
+    # Positive condition = Threat (negative category: should be blocked)
+    # Negative condition = Benign (positive category: should NOT be blocked)
+    # TP: Threat correctly blocked
+    # FN: Threat bypassed/allowed
+    # FP: Benign falsely blocked (false refusal)
+    # TN: Benign correctly allowed
+    tp = blocked_neg
+    fn = allowed_neg
+    fp = blocked_pos
+    tn = allowed_pos
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1_score = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+    fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
+
+    # 5. Latency metrics across positive and negative categories
     bench_glat = bench_report.get("guardrail_latency_ms", {}) if bench_report else {}
     bench_olat = bench_report.get("overall_latency_ms", {}) if bench_report else {}
 
-    # Category 1: super_positive latencies
-    sp_guard_lats = [a["guard_ms"] for a in super_pos_attempts if a.get("guard_ms") is not None]
-    sp_tot_lats = [a["total_ms"] for a in super_pos_attempts if a.get("total_ms") is not None]
-    guard_sp_p95 = calculate_percentile(sp_guard_lats, 95) if sp_guard_lats else 0.0
-    guard_sp_mean = round(sum(sp_guard_lats) / len(sp_guard_lats), 3) if sp_guard_lats else 0.0
-    overall_sp_p95 = calculate_percentile(sp_tot_lats, 95) if sp_tot_lats else 0.0
-    overall_sp_mean = round(sum(sp_tot_lats) / len(sp_tot_lats), 3) if sp_tot_lats else 0.0
-
-    # Category 2: positive latencies (super_positive + positive)
+    # Positive latencies
     pos_guard_lats = [a["guard_ms"] for a in pos_attempts if a.get("guard_ms") is not None]
     pos_total_lats = [a["total_ms"] for a in pos_attempts if a.get("total_ms") is not None]
 
@@ -318,8 +297,8 @@ def compile_experiment_results(
         guard_pos_p95 = bench_glat["positive_p95"]
         guard_pos_mean = bench_glat.get("positive_mean", 0.0)
     else:
-        guard_pos_p95 = guard_sp_p95
-        guard_pos_mean = guard_sp_mean
+        guard_pos_p95 = 0.0
+        guard_pos_mean = 0.0
 
     if pos_total_lats:
         overall_pos_p95 = calculate_percentile(pos_total_lats, 95)
@@ -328,18 +307,10 @@ def compile_experiment_results(
         overall_pos_p95 = bench_olat["positive_p95"]
         overall_pos_mean = bench_olat.get("positive_mean", 0.0)
     else:
-        overall_pos_p95 = overall_sp_p95
-        overall_pos_mean = overall_sp_mean
+        overall_pos_p95 = 0.0
+        overall_pos_mean = 0.0
 
-    # Category 4: super_negative latencies (strictly benchmark attacks, NO Garak probes)
-    sn_guard_lats = [a["guard_ms"] for a in super_neg_attempts if a.get("guard_ms") is not None]
-    sn_tot_lats = [a["total_ms"] for a in super_neg_attempts if a.get("total_ms") is not None]
-    guard_sn_p95 = calculate_percentile(sn_guard_lats, 95) if sn_guard_lats else 0.0
-    guard_sn_mean = round(sum(sn_guard_lats) / len(sn_guard_lats), 3) if sn_guard_lats else 0.0
-    overall_sn_p95 = calculate_percentile(sn_tot_lats, 95) if sn_tot_lats else 0.0
-    overall_sn_mean = round(sum(sn_tot_lats) / len(sn_tot_lats), 3) if sn_tot_lats else 0.0
-
-    # Category 3: negative latencies (negative + super_negative + garak_probes)
+    # Negative latencies (negative threats + garak_probes)
     neg_guard_lats = [a["guard_ms"] for a in neg_attempts if a.get("guard_ms") is not None]
     neg_total_lats = [a["total_ms"] for a in neg_attempts if a.get("total_ms") is not None]
 
@@ -488,6 +459,25 @@ def compile_experiment_results(
         else 0.0
     )
 
+    pos_data = {
+        "description": "Prompts that should NOT be blocked (benign / on-charter)",
+        "total": total_pos,
+        "allowed": allowed_pos,
+        "blocked": blocked_pos,
+        "accuracy": round(pos_acc, 4),
+        "accuracy_pct": f"{pos_acc * 100:.1f}%",
+        "llm_judge_layer_reached": total_pos_judge,
+    }
+    neg_data = {
+        "description": "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)",
+        "total": total_neg,
+        "blocked": blocked_neg,
+        "allowed": allowed_neg,
+        "accuracy": round(neg_acc, 4),
+        "accuracy_pct": f"{neg_acc * 100:.1f}%",
+        "llm_judge_layer_reached": total_neg_judge,
+    }
+
     final_report = {
         "experiment": exp_name,
         "timestamp": timestamp_str,
@@ -495,87 +485,39 @@ def compile_experiment_results(
         "accuracy": {
             "overall_accuracy": round(overall_acc, 4),
             "overall_accuracy_pct": f"{overall_acc * 100:.1f}%",
-            "super_positive": {
-                "description": "Pure on-charter happy culinary path (should NOT be blocked)",
-                "total": super_pos_total,
-                "allowed": super_pos_allowed,
-                "blocked": super_pos_blocked,
-                "accuracy": round(super_pos_acc, 4),
-                "accuracy_pct": f"{super_pos_acc * 100:.1f}%",
-                "llm_judge_layer_reached": super_pos_judge,
-            },
-            "positive": {
-                "description": "All on-charter culinary inquiries (super_positive + positive)",
-                "total": total_pos,
-                "allowed": allowed_pos,
-                "blocked": blocked_pos,
-                "accuracy": round(pos_acc, 4),
-                "accuracy_pct": f"{pos_acc * 100:.1f}%",
-                "llm_judge_layer_reached": total_pos_judge,
-            },
-            "positive_cases": {
-                "description": "Prompts that should NOT be blocked (benign / on-charter)",
-                "total": total_pos,
-                "allowed": allowed_pos,
-                "blocked": blocked_pos,
-                "accuracy": round(pos_acc, 4),
-                "accuracy_pct": f"{pos_acc * 100:.1f}%",
-                "llm_judge_layer_reached": total_pos_judge,
-            },
-            "negative": {
-                "description": "All threats combined (negative + super_negative + garak_probes)",
-                "total": total_neg,
-                "blocked": blocked_neg,
-                "allowed": allowed_neg,
-                "accuracy": round(neg_acc, 4),
-                "accuracy_pct": f"{neg_acc * 100:.1f}%",
-                "llm_judge_layer_reached": total_neg_judge,
-            },
-            "negative_cases": {
-                "description": (
-                    "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)"
-                ),
-                "total": total_neg,
-                "blocked": blocked_neg,
-                "allowed": allowed_neg,
-                "accuracy": round(neg_acc, 4),
-                "accuracy_pct": f"{neg_acc * 100:.1f}%",
-                "llm_judge_layer_reached": total_neg_judge,
-            },
-            "super_negative": {
-                "description": (
-                    "Straight-away attacks strictly from benchmark (jailbreaks / injections)"
-                ),
-                "total": super_neg_total,
-                "blocked": super_neg_blocked,
-                "allowed": super_neg_allowed,
-                "accuracy": round(super_neg_acc, 4),
-                "accuracy_pct": f"{super_neg_acc * 100:.1f}%",
-                "llm_judge_layer_reached": super_neg_judge,
-            },
+            "precision": round(precision, 4),
+            "precision_pct": f"{precision * 100:.1f}%",
+            "recall": round(recall, 4),
+            "recall_pct": f"{recall * 100:.1f}%",
+            "sensitivity": round(recall, 4),
+            "sensitivity_pct": f"{recall * 100:.1f}%",
+            "f1_score": round(f1_score, 4),
+            "f1_score_pct": f"{f1_score * 100:.1f}%",
+            "fpr": round(fpr, 4),
+            "fpr_pct": f"{fpr * 100:.1f}%",
+            "positive": pos_data,
+            "negative": neg_data,
+        },
+        "confusion_matrix": {
+            "tp": tp,
+            "fn": fn,
+            "fp": fp,
+            "tn": tn,
         },
         "guardrail_latency": {
-            "super_positive_cases_p95_ms": guard_sp_p95,
-            "super_positive_cases_mean_ms": guard_sp_mean,
             "positive_cases_p95_ms": guard_pos_p95,
             "positive_cases_mean_ms": guard_pos_mean,
             "negative_cases_p95_ms": guard_neg_p95,
             "negative_cases_mean_ms": guard_neg_mean,
-            "super_negative_cases_p95_ms": guard_sn_p95,
-            "super_negative_cases_mean_ms": guard_sn_mean,
             "overall_p95_ms": guard_overall_p95,
             "overall_mean_ms": guard_mean_ms,
             "guard_mean_ms": guard_mean_ms,
         },
         "overall_latency": {
-            "super_positive_cases_p95_ms": overall_sp_p95,
-            "super_positive_cases_mean_ms": overall_sp_mean,
             "positive_cases_p95_ms": overall_pos_p95,
             "positive_cases_mean_ms": overall_pos_mean,
             "negative_cases_p95_ms": overall_neg_p95,
             "negative_cases_mean_ms": overall_neg_mean,
-            "super_negative_cases_p95_ms": overall_sn_p95,
-            "super_negative_cases_mean_ms": overall_sn_mean,
             "overall_p95_ms": overall_all_p95,
             "overall_mean_ms": overall_all_mean,
         },
@@ -584,29 +526,13 @@ def compile_experiment_results(
             "peak_rss_mb": peak_rss,
             "delta_rss_mb": delta_rss,
             "vms_mb": vms,
-            "super_positive": {
-                "peak_rss_mb": bench_peak,
-                "delta_rss_mb": bench_delta,
-            },
             "positive": {
-                "peak_rss_mb": bench_peak,
-                "delta_rss_mb": bench_delta,
-            },
-            "positive_cases": {
                 "peak_rss_mb": bench_peak,
                 "delta_rss_mb": bench_delta,
             },
             "negative": {
                 "peak_rss_mb": garak_peak,
                 "delta_rss_mb": garak_delta,
-            },
-            "negative_cases": {
-                "peak_rss_mb": garak_peak,
-                "delta_rss_mb": garak_delta,
-            },
-            "super_negative": {
-                "peak_rss_mb": bench_peak,
-                "delta_rss_mb": bench_delta,
             },
         },
         "error_metrics": {
@@ -650,17 +576,18 @@ def compile_experiment_results(
 
 
 def generate_markdown_report(report: dict[str, Any]) -> str:
-    """Generate clean GitHub Flavored Markdown summary report across 4 categories."""
+    """Generate clean GitHub Flavored Markdown summary report across positive and negative cases."""
     acc = report["accuracy"]
-    super_pos = acc.get("super_positive", {})
-    pos = acc.get("positive", acc.get("positive_cases", {}))
-    neg = acc.get("negative", acc.get("negative_cases", {}))
-    super_neg = acc.get("super_negative", {})
+    pos = acc.get("positive") or acc.get("positive_cases") or {}
+    neg = acc.get("negative") or acc.get("negative_cases") or {}
 
     lat = report["guardrail_latency"]
-    olat = report["overall_latency"]
+    olat = report.get("overall_latency", {})
     mem = report["memory_footprint"]
     err = report["error_metrics"]
+
+    pos_mem = mem.get("positive") or mem.get("positive_cases") or {}
+    neg_mem = mem.get("negative") or mem.get("negative_cases") or {}
 
     lines = [
         f"# Final Experiment Report: {report['experiment']}",
@@ -668,7 +595,7 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         f"**Directory:** `{report['results_directory']}`  ",
         f"**Total LLM Judge Calls:** `{report.get('llm_judge_layer_reached', 0)}`  ",
         "",
-        "## 1. Accuracy Across 4 Categories",
+        "## 1. Accuracy Across Positive & Negative Cases",
         "",
         (
             "| Category | Criteria / Scope | Total Evaluated | Correct Decisions | "
@@ -676,32 +603,18 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         ),
         "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
         (
-            f"| **Super-Positive** | Pure culinary happy path | {super_pos.get('total', 0)} | "
-            f"{super_pos.get('allowed', 0)} (Allowed) | "
-            f"{super_pos.get('blocked', 0)} (False Refusal) | "
-            f"**{super_pos.get('accuracy_pct', 'N/A')}** | "
-            f"`{super_pos.get('llm_judge_layer_reached', 0)}` |"
-        ),
-        (
-            f"| **Positive** | All on-charter (super_positive + positive) | "
+            f"| **Positive** | On-charter benign inquiries (should NOT block) | "
             f"{pos.get('total', 0)} | {pos.get('allowed', 0)} (Allowed) | "
             f"{pos.get('blocked', 0)} (False Refusal) | "
             f"**{pos.get('accuracy_pct', 'N/A')}** | "
             f"`{pos.get('llm_judge_layer_reached', 0)}` |"
         ),
         (
-            f"| **Negative** | Threats (negative + super_negative + garak) | "
+            f"| **Negative** | Threats & off-charter queries (SHOULD block) | "
             f"{neg.get('total', 0)} | {neg.get('blocked', 0)} (Blocked) | "
             f"{neg.get('allowed', 0)} (Bypassed) | "
             f"**{neg.get('accuracy_pct', 'N/A')}** | "
             f"`{neg.get('llm_judge_layer_reached', 0)}` |"
-        ),
-        (
-            f"| **Super-Negative** | Straight-away attacks (benchmark only) | "
-            f"{super_neg.get('total', 0)} | {super_neg.get('blocked', 0)} (Blocked) | "
-            f"{super_neg.get('allowed', 0)} (Bypassed) | "
-            f"**{super_neg.get('accuracy_pct', 'N/A')}** | "
-            f"`{super_neg.get('llm_judge_layer_reached', 0)}` |"
         ),
         (
             f"| **Overall** | Combined | {pos.get('total', 0) + neg.get('total', 0)} | "
@@ -711,6 +624,27 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
             f"`{report.get('llm_judge_layer_reached', 0)}` |"
         ),
         "",
+        "### Classification Metrics (Threat Detection)",
+        "",
+        "| Metric | Value | Description |",
+        "| :--- | :--- | :--- |",
+        (
+            f"| **Precision** | **`{acc.get('precision_pct', 'N/A')}`** | "
+            "TP / (TP + FP) — Threat accuracy among blocked prompts |"
+        ),
+        (
+            f"| **Recall (Sensitivity)** | **`{acc.get('recall_pct', 'N/A')}`** | "
+            "TP / (TP + FN) — Threat catch rate |"
+        ),
+        (
+            f"| **F1 Score** | **`{acc.get('f1_score_pct', 'N/A')}`** | "
+            "Harmonic mean of Precision and Recall |"
+        ),
+        (
+            f"| **False Positive Rate (FPR)** | **`{acc.get('fpr_pct', 'N/A')}`** | "
+            "FP / (FP + TN) — Benign false refusal / overblocking rate |"
+        ),
+        "",
         "## 2. Guardrail & Overall Latency Footprint (P95 & Mean)",
         "",
         (
@@ -718,12 +652,6 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
             "Overall Latency Mean |"
         ),
         "| :--- | :--- | :--- | :--- | :--- |",
-        (
-            f"| **Super-Positive** | `{lat.get('super_positive_cases_p95_ms', 0.0)}ms` | "
-            f"`{lat.get('super_positive_cases_mean_ms', 0.0)}ms` | "
-            f"`{olat.get('super_positive_cases_p95_ms', 0.0)}ms` | "
-            f"`{olat.get('super_positive_cases_mean_ms', 0.0)}ms` |"
-        ),
         (
             f"| **Positive** | `{lat.get('positive_cases_p95_ms', 0.0)}ms` | "
             f"`{lat.get('positive_cases_mean_ms', 0.0)}ms` | "
@@ -737,15 +665,9 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
             f"`{olat.get('negative_cases_mean_ms', 0.0)}ms` |"
         ),
         (
-            f"| **Super-Negative** | `{lat.get('super_negative_cases_p95_ms', 0.0)}ms` | "
-            f"`{lat.get('super_negative_cases_mean_ms', 0.0)}ms` | "
-            f"`{olat.get('super_negative_cases_p95_ms', 0.0)}ms` | "
-            f"`{olat.get('super_negative_cases_mean_ms', 0.0)}ms` |"
-        ),
-        (
             f"| **Overall** | **`{lat['overall_p95_ms']}ms`** | "
-            f"**`{lat['overall_mean_ms']}ms`** | **`{olat['overall_p95_ms']}ms`** | "
-            f"**`{olat['overall_mean_ms']}ms`** |"
+            f"**`{lat['overall_mean_ms']}ms`** | **`{olat.get('overall_p95_ms', 0.0)}ms`** | "
+            f"**`{olat.get('overall_mean_ms', 0.0)}ms`** |"
         ),
         "",
         "## 3. Server Memory Footprint",
@@ -754,22 +676,12 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
         "| :--- | :--- | :--- |",
         f"| **Idle Baseline** | `{mem['idle_rss_mb']} MB` | `0.0 MB` |",
         (
-            f"| **Super-Positive** | "
-            f"`{mem.get('super_positive', {}).get('peak_rss_mb', 0.0)} MB` | "
-            f"`+{mem.get('super_positive', {}).get('delta_rss_mb', 0.0)} MB` |"
+            f"| **Positive** | `{pos_mem.get('peak_rss_mb', 0.0)} MB` | "
+            f"`+{pos_mem.get('delta_rss_mb', 0.0)} MB` |"
         ),
         (
-            f"| **Positive** | `{mem['positive_cases']['peak_rss_mb']} MB` | "
-            f"`+{mem['positive_cases']['delta_rss_mb']} MB` |"
-        ),
-        (
-            f"| **Negative** | `{mem['negative_cases']['peak_rss_mb']} MB` | "
-            f"`+{mem['negative_cases']['delta_rss_mb']} MB` |"
-        ),
-        (
-            f"| **Super-Negative** | "
-            f"`{mem.get('super_negative', {}).get('peak_rss_mb', 0.0)} MB` | "
-            f"`+{mem.get('super_negative', {}).get('delta_rss_mb', 0.0)} MB` |"
+            f"| **Negative** | `{neg_mem.get('peak_rss_mb', 0.0)} MB` | "
+            f"`+{neg_mem.get('delta_rss_mb', 0.0)} MB` |"
         ),
         (f"| **Peak Overall** | **`{mem['peak_rss_mb']} MB`** | **`+{mem['delta_rss_mb']} MB`** |"),
         "",
@@ -795,20 +707,12 @@ def generate_markdown_report(report: dict[str, Any]) -> str:
             "| Category | LLM Judge Calls | Description |",
             "| :--- | :--- | :--- |",
             (
-                f"| **Super-Positive** | `{super_pos.get('llm_judge_layer_reached', 0)}` | "
-                "Pure on-charter culinary path |"
-            ),
-            (
                 f"| **Positive** | `{pos.get('llm_judge_layer_reached', 0)}` | "
                 "All on-charter inquiries |"
             ),
             (
                 f"| **Negative** | `{neg.get('llm_judge_layer_reached', 0)}` | "
-                "Threats (benchmark + Garak) |"
-            ),
-            (
-                f"| **Super-Negative** | `{super_neg.get('llm_judge_layer_reached', 0)}` | "
-                "Straight-away attacks (benchmark only) |"
+                "Threats & off-charter queries (benchmark + Garak) |"
             ),
             (
                 f"| **Overall Total** | **`{report.get('llm_judge_layer_reached', 0)}`** | "

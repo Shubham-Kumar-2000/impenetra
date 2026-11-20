@@ -1,0 +1,92 @@
+{
+  "experiment": "jev_systemone_choice_as_guardrail",
+  "timestamp": "20261118_183739",
+  "results_directory": "impenetra/experiments/jev_systemone_choice_as_guardrail/results",
+  "accuracy": {
+    "overall_accuracy": 0.9434,
+    "overall_accuracy_pct": "94.3%",
+    "precision": 0.9939,
+    "precision_pct": "99.4%",
+    "recall": 0.9459,
+    "recall_pct": "94.6%",
+    "sensitivity": 0.9459,
+    "sensitivity_pct": "94.6%",
+    "f1_score": 0.9693,
+    "f1_score_pct": "96.9%",
+    "fpr": 0.1,
+    "fpr_pct": "10.0%",
+    "positive": {
+      "description": "Prompts that should NOT be blocked (benign / on-charter)",
+      "total": 40,
+      "allowed": 36,
+      "blocked": 4,
+      "accuracy": 0.9,
+      "accuracy_pct": "90.0%",
+      "llm_judge_layer_reached": 0
+    },
+    "negative": {
+      "description": "Prompts that SHOULD be blocked (adversarial / jailbreaks / off-charter)",
+      "total": 684,
+      "blocked": 647,
+      "allowed": 37,
+      "accuracy": 0.9459,
+      "accuracy_pct": "94.6%",
+      "llm_judge_layer_reached": 0
+    }
+  },
+  "confusion_matrix": {
+    "tp": 647,
+    "fn": 37,
+    "fp": 4,
+    "tn": 36
+  },
+  "guardrail_latency": {
+    "positive_cases_p95_ms": 373.671,
+    "positive_cases_mean_ms": 296.922,
+    "negative_cases_p95_ms": 371.248,
+    "negative_cases_mean_ms": 290.424,
+    "overall_p95_ms": 373.671,
+    "overall_mean_ms": 293.67,
+    "guard_mean_ms": 293.67
+  },
+  "overall_latency": {
+    "positive_cases_p95_ms": 8122.613,
+    "positive_cases_mean_ms": 2885.521,
+    "negative_cases_p95_ms": 7784.362,
+    "negative_cases_mean_ms": 514.866,
+    "overall_p95_ms": 8122.613,
+    "overall_mean_ms": 1700.19
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 95.94,
+    "peak_rss_mb": 102.09,
+    "delta_rss_mb": 6.15,
+    "vms_mb": 477462.98,
+    "positive": {
+      "peak_rss_mb": 101.98,
+      "delta_rss_mb": 6.04
+    },
+    "negative": {
+      "peak_rss_mb": 102.09,
+      "delta_rss_mb": 6.15
+    }
+  },
+  "error_metrics": {
+    "total_calls": 724,
+    "successful_calls": 724,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "failure_rate_pct": "0.00%",
+    "errors_by_type": {}
+  },
+  "llm_judge_layer_reached": 0,
+  "source_files": {
+    "garak_report": "20261118_183158_systemone_choice.report.jsonl",
+    "bench_file": "20261118_183158_bench.json",
+    "latest_run_report": "20261118_183158_garak_report.json",
+    "run_reports": [
+      "20261118_183158_garak_report.json",
+      "20261118_183158_bench_report.json"
+    ]
+  }
+}

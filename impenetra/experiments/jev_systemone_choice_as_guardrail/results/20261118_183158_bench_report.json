@@ -1,0 +1,36 @@
+{
+  "experiment": "jev_systemone_choice_as_guardrail",
+  "run_type": "bench",
+  "timestamp": "20261118_183158",
+  "server_url": "http://127.0.0.1:8000",
+  "error_metrics": {
+    "total_calls": 104,
+    "successful_calls": 104,
+    "failed_calls": 0,
+    "failure_rate": 0.0,
+    "errors_by_type": {}
+  },
+  "memory_footprint": {
+    "idle_rss_mb": 95.94,
+    "peak_rss_mb": 101.98,
+    "delta_rss_mb": 6.04,
+    "vms_mb": 477462.98
+  },
+  "guardrail_latency_ms": {
+    "p50": 278.472,
+    "p95": 371.802,
+    "p99": 490.754,
+    "mean": 290.377,
+    "min": 252.59,
+    "max": 604.333
+  },
+  "overall_latency_ms": {
+    "p50": 279.888,
+    "p95": 373.354,
+    "p99": 492.535,
+    "mean": 291.896,
+    "min": 254.268,
+    "max": 604.751
+  },
+  "llm_judge_layer_reached": 0
+}

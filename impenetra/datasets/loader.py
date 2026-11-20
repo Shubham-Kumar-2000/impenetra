@@ -9,10 +9,10 @@ import csv
 from pathlib import Path
 from typing import Any
 
-from .registry import DATASET_REGISTRY, DatasetInfo
+from .registry import DATASET_REGISTRY, IN_CHARTER_INTENTS, DatasetInfo
 
 REQUIRED_COLUMNS = ["prompt", "expected_blocked", "type", "subtype"]
-ALLOWED_TYPES = {"super_positive", "positive", "negative", "super_negative"}
+ALLOWED_TYPES = {"positive", "negative"}
 
 
 def parse_boolean(value: Any) -> bool:
@@ -32,19 +32,52 @@ def parse_boolean(value: Any) -> bool:
     raise ValueError(f"Invalid boolean value: {value!r}. Expected strictly 'true' or 'false'.")
 
 
+def _load_hf_dataset(
+    info: DatasetInfo,
+    split: str | None = None,
+) -> list[dict[str, Any]]:
+    """Load and format a dataset from Hugging Face."""
+    from datasets import load_dataset
+
+    split_to_load = split or info.default_split or "test"
+    kwargs: dict[str, Any] = {"path": info.hf_path, "split": split_to_load}
+    if info.hf_config:
+        kwargs["name"] = info.hf_config
+
+    ds = load_dataset(**kwargs)
+    rows: list[dict[str, Any]] = []
+    for item in ds:
+        prompt = (item.get(info.text_column) or "").strip()
+        if not prompt:
+            continue
+        label_text = str(item.get(info.label_column) or "").strip()
+        is_positive = label_text in IN_CHARTER_INTENTS
+        rows.append(
+            {
+                "prompt": prompt,
+                "expected_blocked": not is_positive,
+                "type": "positive" if is_positive else "negative",
+                "subtype": label_text,
+                "dataset": info.name,
+            }
+        )
+    return rows
+
+
 def load_guardrail_dataset(
     name_or_path: str | Path,
+    split: str | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Load and strictly validate a benchmark dataset CSV.
+    Load and strictly validate a benchmark dataset CSV or Hugging Face dataset.
 
     Contract:
     - Headers must contain: 'prompt', 'expected_blocked', 'type', 'subtype'
     - 'prompt': non-empty string
     - 'expected_blocked': strictly 'true' or 'false'
-    - 'type': strictly one of {'super_positive', 'positive', 'negative', 'super_negative'}
-    - 'super_positive' and 'positive' must have expected_blocked=false
-    - 'negative' and 'super_negative' must have expected_blocked=true
+    - 'type': strictly one of {'positive', 'negative'}
+    - 'positive' must have expected_blocked=false
+    - 'negative' must have expected_blocked=true
 
     Raises:
         ValueError: If file is missing or any contract check fails.
@@ -52,6 +85,10 @@ def load_guardrail_dataset(
     name_str = str(name_or_path)
     if name_str in DATASET_REGISTRY:
         info: DatasetInfo = DATASET_REGISTRY[name_str]
+        if info.hf_path:
+            return _load_hf_dataset(info, split=split)
+        if info.path is None:
+            raise ValueError(f"Dataset '{name_str}' has neither 'path' nor 'hf_path' defined.")
         csv_path = info.path
         dataset_name = info.name
     else:
@@ -98,12 +135,12 @@ def load_guardrail_dataset(
                 )
 
             # Strict cross-validation: expected_blocked vs type
-            if raw_type in {"super_positive", "positive"} and expected_blocked is not False:
+            if raw_type == "positive" and expected_blocked is not False:
                 raise ValueError(
                     f"Dataset '{dataset_name}' row {row_idx}: Type '{raw_type}' "
                     f"must have expected_blocked=false, got '{raw_blocked}'."
                 )
-            if raw_type in {"negative", "super_negative"} and expected_blocked is not True:
+            if raw_type == "negative" and expected_blocked is not True:
                 raise ValueError(
                     f"Dataset '{dataset_name}' row {row_idx}: Type '{raw_type}' "
                     f"must have expected_blocked=true, got '{raw_blocked}'."

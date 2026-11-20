@@ -17,6 +17,10 @@ dependencies = [
 
     # NeMo Guardrails (benchmark baseline)
     "nemoguardrails>=0.11.0",
+    "nest_asyncio>=1.6.0",
+
+    # Prompt Optimization & Guardrails
+    "dspy>=2.5.0",
 
     # Red-teaming & Vulnerability Assessment
     "garak>=0.17.0",
@@ -37,6 +41,8 @@ dependencies = [
     "numpy>=2.1.0",
     "pandas>=2.2.0",
     "scikit-learn>=1.5.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
     "tqdm>=4.66.0",
     "rich>=13.0.0",
     "pyyaml>=6.0",
@@ -91,6 +97,8 @@ module = [
     "llama_cookbook.*",
     "gradio_client.*",
     "gradio_client",
+    "dspy.*",
+    "dspy",
 ]
 ignore_missing_imports = true
 
